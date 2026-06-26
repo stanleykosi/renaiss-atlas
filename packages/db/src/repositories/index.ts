@@ -3,6 +3,7 @@ import { createActionsRepo } from "./actions.repo.js";
 import { createAiMemosRepo } from "./ai-memos.repo.js";
 import { createBundlesRepo } from "./bundles.repo.js";
 import { createCardsRepo } from "./cards.repo.js";
+import { createDataQualityEventsRepo } from "./data-quality-events.repo.js";
 import { createExternalPricesRepo } from "./external-prices.repo.js";
 import { createIntentsRepo } from "./intents.repo.js";
 import { createPackActivitiesRepo } from "./pack-activities.repo.js";
@@ -17,6 +18,7 @@ export function createAtlasRepositories(db: AtlasDb) {
     aiMemos: createAiMemosRepo(db),
     bundles: createBundlesRepo(db),
     cards: createCardsRepo(db),
+    dataQualityEvents: createDataQualityEventsRepo(db),
     externalPrices: createExternalPricesRepo(db),
     intents: createIntentsRepo(db),
     packActivities: createPackActivitiesRepo(db),
@@ -31,6 +33,7 @@ export * from "./actions.repo.js";
 export * from "./ai-memos.repo.js";
 export * from "./bundles.repo.js";
 export * from "./cards.repo.js";
+export * from "./data-quality-events.repo.js";
 export * from "./external-prices.repo.js";
 export * from "./intents.repo.js";
 export * from "./pack-activities.repo.js";

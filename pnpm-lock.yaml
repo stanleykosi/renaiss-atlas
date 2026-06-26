@@ -164,6 +164,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@renaiss/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
+      '@renaiss/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       p-limit:
         specifier: ^6.2.0
         version: 6.2.0
@@ -202,6 +208,12 @@ importers:
       '@renaiss/core':
         specifier: workspace:*
         version: link:../core
+      '@renaiss/db':
+        specifier: workspace:*
+        version: link:../db
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.7.2

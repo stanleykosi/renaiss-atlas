@@ -4,11 +4,30 @@ import type { AtlasDb } from "../client.js";
 import { syncRuns } from "../schema.js";
 
 export type NewSyncRun = typeof syncRuns.$inferInsert;
+export type SyncRunUpdate = Partial<
+  Pick<
+    typeof syncRuns.$inferInsert,
+    | "status"
+    | "finishedAt"
+    | "durationMs"
+    | "recordsSeen"
+    | "recordsInserted"
+    | "recordsUpdated"
+    | "recordsFailed"
+    | "errorMessage"
+    | "metadata"
+  >
+>;
 
 export function createSyncRunsRepo(db: AtlasDb) {
   return {
     async start(input: NewSyncRun) {
       const [run] = await db.insert(syncRuns).values(input).returning();
+      return run;
+    },
+
+    async finish(id: string, input: SyncRunUpdate) {
+      const [run] = await db.update(syncRuns).set(input).where(eq(syncRuns.id, id)).returning();
       return run;
     },
 
@@ -24,4 +43,3 @@ export function createSyncRunsRepo(db: AtlasDb) {
     }
   };
 }
-

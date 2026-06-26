@@ -16,6 +16,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@renaiss/connectors": "workspace:*",
+    "@renaiss/db": "workspace:*",
     "p-limit": "^6.2.0",
     "p-retry": "^6.2.1",
     "pino": "^9.5.0"
