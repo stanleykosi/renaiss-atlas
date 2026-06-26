@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@renaiss/core": ["packages/core/src/index.ts"],
+      "@renaiss/db": ["packages/db/src/index.ts"],
+      "@renaiss/connectors": ["packages/connectors/src/index.ts"],
+      "@renaiss/ai": ["packages/ai/src/index.ts"],
+      "@renaiss/ui": ["packages/ui/src/index.ts"]
+    }
+  }
+}

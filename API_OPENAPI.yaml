@@ -1,0 +1,567 @@
+openapi: 3.1.0
+info:
+  title: Renaiss Atlas API
+  version: 0.1.0
+  description: API contract for Renaiss Atlas, a liquidity oracle and AI collector copilot.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+security: []
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /api/sync/status:
+    get:
+      summary: Latest sync runs and data freshness
+      responses:
+        '200':
+          description: Sync status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncStatusResponse' }
+  /api/sync/renaiss:
+    post:
+      summary: Trigger Renaiss marketplace sync
+      security:
+        - JobSecret: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 10000 }
+                strategy: { type: string, enum: [auto, v0, trpc] }
+      responses:
+        '202': { description: Accepted }
+        '401': { description: Unauthorized }
+  /api/sync/gacha:
+    post:
+      summary: Trigger gacha sync
+      security:
+        - JobSecret: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                packSlug: { type: string }
+      responses:
+        '202': { description: Accepted }
+        '401': { description: Unauthorized }
+  /api/market/health:
+    get:
+      summary: Market health metrics
+      parameters:
+        - in: query
+          name: tcg
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [listed, unlisted, unknown] }
+      responses:
+        '200':
+          description: Market health
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketHealth' }
+  /api/cards:
+    get:
+      summary: Search cards
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [listed, unlisted, unknown] }
+        - in: query
+          name: language
+          schema: { type: string }
+        - in: query
+          name: grader
+          schema: { type: string }
+        - in: query
+          name: grade
+          schema: { type: string }
+        - in: query
+          name: minLiquidityScore
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: maxAskUsd
+          schema: { type: number, minimum: 0 }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 50, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: Card search results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CardListItem' }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+                  freshness:
+                    type: array
+                    items: { $ref: '#/components/schemas/Freshness' }
+  /api/cards/{tokenId}:
+    get:
+      summary: Card intelligence detail
+      parameters:
+        - in: path
+          name: tokenId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Card detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CardDetail' }
+        '404': { description: Not found }
+  /api/cards/{tokenId}/actions:
+    get:
+      summary: Actions for a card
+      parameters:
+        - in: path
+          name: tokenId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Actions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokenId: { type: string }
+                  actions:
+                    type: array
+                    items: { $ref: '#/components/schemas/ActionRecommendation' }
+  /api/wallet/{address}/copilot:
+    get:
+      summary: Wallet copilot
+      parameters:
+        - in: path
+          name: address
+          required: true
+          schema: { type: string, pattern: '^0x[a-fA-F0-9]{40}$' }
+      responses:
+        '200':
+          description: Wallet action plan
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletCopilot' }
+        '400': { description: Invalid address }
+  /api/intents:
+    get:
+      summary: Search intents
+      responses:
+        '200':
+          description: Intents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Intent' }
+    post:
+      summary: Create intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIntentInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Intent' }
+  /api/intents/{intentId}/matches:
+    get:
+      summary: Intent matches
+      parameters:
+        - in: path
+          name: intentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Matches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  intentId: { type: string }
+                  matches:
+                    type: array
+                    items: { $ref: '#/components/schemas/IntentMatch' }
+  /api/bundles:
+    get:
+      summary: Bundle opportunities
+      parameters:
+        - in: query
+          name: type
+          schema: { type: string }
+        - in: query
+          name: minScore
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: wallet
+          schema: { type: string }
+      responses:
+        '200':
+          description: Bundles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Bundle' }
+  /api/packs/momentum:
+    get:
+      summary: Pack momentum
+      responses:
+        '200':
+          description: Pack metrics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PackMomentum' }
+  /api/ai/memos/card/{tokenId}:
+    post:
+      summary: Generate or refresh AI memo for card
+      parameters:
+        - in: path
+          name: tokenId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: AI memo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiMemo' }
+  /api/discord/interactions:
+    post:
+      summary: Discord interactions endpoint
+      responses:
+        '200': { description: Discord-compatible response }
+components:
+  securitySchemes:
+    JobSecret:
+      type: http
+      scheme: bearer
+  schemas:
+    Freshness:
+      type: object
+      required: [source, observedAt, status]
+      properties:
+        source: { type: string }
+        observedAt: { type: string, format: date-time }
+        status: { type: string, enum: [fresh, stale, missing] }
+        message: { type: string }
+    SourceRef:
+      type: object
+      properties:
+        id: { type: string }
+        source: { type: string }
+        sourceUrl: { type: string }
+        fetchedAt: { type: string, format: date-time }
+        confidence: { type: string, enum: [low, medium, high] }
+    Score:
+      type: object
+      properties:
+        type: { type: string }
+        value: { type: number, minimum: 0, maximum: 100 }
+        confidence: { type: string, enum: [low, medium, high] }
+        reasons:
+          type: array
+          items: { type: string }
+        riskFlags:
+          type: array
+          items: { type: string }
+        computedAt: { type: string, format: date-time }
+    CardListItem:
+      type: object
+      required: [tokenId, name, status]
+      properties:
+        tokenId: { type: string }
+        itemId: { type: string }
+        name: { type: string }
+        setName: { type: string }
+        cardNumber: { type: string }
+        characterName: { type: string }
+        imageUrl: { type: string }
+        grader: { type: string }
+        grade: { type: string }
+        language: { type: string }
+        year: { type: integer }
+        serial: { type: string }
+        status: { type: string, enum: [listed, unlisted, unknown] }
+        askPriceUsd: { type: number }
+        fmvUsd: { type: number }
+        topOfferUsd: { type: number }
+        lastSaleUsd: { type: number }
+        liquidityScore: { type: number }
+        dealScore: { type: number }
+        demandScore: { type: number }
+        recommendedAction: { type: string }
+    ExternalComp:
+      type: object
+      properties:
+        platform: { type: string, enum: [snkrdunk, pricecharting, manual, mock] }
+        productTitle: { type: string }
+        productUrl: { type: string }
+        currentPriceUsd: { type: number }
+        lastSaleUsd: { type: number }
+        averagePriceUsd: { type: number }
+        matchConfidence: { type: number, minimum: 0, maximum: 100 }
+        matchReasons:
+          type: array
+          items: { type: string }
+        rejected: { type: boolean }
+        rejectionReason: { type: string }
+        fetchedAt: { type: string, format: date-time }
+    CardDetail:
+      allOf:
+        - $ref: '#/components/schemas/CardListItem'
+        - type: object
+          properties:
+            ownerAddress: { type: string }
+            buybackBaseValueUsd: { type: number }
+            scores:
+              type: array
+              items: { $ref: '#/components/schemas/Score' }
+            externalComps:
+              type: array
+              items: { $ref: '#/components/schemas/ExternalComp' }
+            bundles:
+              type: array
+              items: { $ref: '#/components/schemas/Bundle' }
+            intentMatches:
+              type: array
+              items: { $ref: '#/components/schemas/IntentMatch' }
+            actions:
+              type: array
+              items: { $ref: '#/components/schemas/ActionRecommendation' }
+            aiMemo: { $ref: '#/components/schemas/AiMemo' }
+            sources:
+              type: array
+              items: { $ref: '#/components/schemas/SourceRef' }
+    ActionRecommendation:
+      type: object
+      properties:
+        actionType: { type: string, enum: [LIST, MAKE_OFFER, BUNDLE, WATCH, AVOID, CREATE_INTENT, MATCH_INTENT, QUEST, SHARE] }
+        priority: { type: integer }
+        title: { type: string }
+        reason: { type: string }
+        confidence: { type: string, enum: [low, medium, high] }
+        impact: { type: string }
+        risks:
+          type: array
+          items: { type: string }
+        sourceIds:
+          type: array
+          items: { type: string }
+        cta:
+          type: object
+          properties:
+            label: { type: string }
+            href: { type: string }
+    Intent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        creatorAlias: { type: string }
+        creatorWallet: { type: string }
+        intentType: { type: string, enum: [buy, sell, bundle, trade, watch, quest] }
+        queryText: { type: string }
+        characterName: { type: string }
+        setName: { type: string }
+        cardNumber: { type: string }
+        grader: { type: string }
+        grade: { type: string }
+        language: { type: string }
+        minPriceUsd: { type: number }
+        maxPriceUsd: { type: number }
+        minLiquidityScore: { type: number }
+        requiresSerialAdjacency: { type: boolean }
+        status: { type: string, enum: [active, expired, closed, hidden] }
+        createdAt: { type: string, format: date-time }
+    CreateIntentInput:
+      type: object
+      required: [intentType, queryText]
+      properties:
+        creatorAlias: { type: string, maxLength: 80 }
+        creatorWallet: { type: string }
+        intentType: { type: string, enum: [buy, sell, bundle, trade, watch, quest] }
+        queryText: { type: string, minLength: 3, maxLength: 500 }
+        characterName: { type: string }
+        setName: { type: string }
+        cardNumber: { type: string }
+        grader: { type: string }
+        grade: { type: string }
+        language: { type: string }
+        minPriceUsd: { type: number }
+        maxPriceUsd: { type: number }
+        minLiquidityScore: { type: number }
+        requiresSerialAdjacency: { type: boolean }
+        expiresAt: { type: string, format: date-time }
+    IntentMatch:
+      type: object
+      properties:
+        intentId: { type: string }
+        tokenId: { type: string }
+        matchScore: { type: number, minimum: 0, maximum: 100 }
+        confidence: { type: string, enum: [low, medium, high] }
+        reasons:
+          type: array
+          items: { type: string }
+        card: { $ref: '#/components/schemas/CardListItem' }
+    Bundle:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bundleType: { type: string }
+        name: { type: string }
+        summary: { type: string }
+        score: { type: number, minimum: 0, maximum: 100 }
+        confidence: { type: string, enum: [low, medium, high] }
+        totalAskUsd: { type: number }
+        totalFmvUsd: { type: number }
+        reason:
+          type: array
+          items: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CardListItem' }
+    WalletCopilot:
+      type: object
+      properties:
+        address: { type: string }
+        summary:
+          type: object
+          properties:
+            totalCards: { type: integer }
+            listedCards: { type: integer }
+            unlistedCards: { type: integer }
+            totalFmvUsd: { type: number }
+            totalAskUsd: { type: number }
+            avgLiquidityScore: { type: number }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/ActionRecommendation' }
+        holdings:
+          type: array
+          items: { $ref: '#/components/schemas/CardListItem' }
+        bundles:
+          type: array
+          items: { $ref: '#/components/schemas/Bundle' }
+    AiMemo:
+      type: object
+      properties:
+        recommendation: { type: string }
+        evidence:
+          type: array
+          items: { type: string }
+        risks:
+          type: array
+          items: { type: string }
+        confidence: { type: string, enum: [low, medium, high] }
+        sourcesUsed:
+          type: array
+          items: { type: string }
+        nextAction:
+          type: object
+          properties:
+            label: { type: string }
+            type: { type: string }
+        disclaimer: { type: string }
+        createdAt: { type: string, format: date-time }
+    PackMomentum:
+      type: object
+      properties:
+        packs:
+          type: array
+          items:
+            type: object
+            properties:
+              packName: { type: string }
+              packSlug: { type: string }
+              pulls1h: { type: integer }
+              pulls24h: { type: integer }
+              fmvPulled24h: { type: number }
+              tierDistribution:
+                type: object
+                additionalProperties: { type: integer }
+              observedIntervals:
+                type: object
+                additionalProperties: { type: integer }
+              recentPulls:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    activityId: { type: string }
+                    tier: { type: string }
+                    fmvUsd: { type: number }
+                    psaId: { type: string }
+                    pulledAt: { type: string, format: date-time }
+    MarketHealth:
+      type: object
+      properties:
+        totalCards: { type: integer }
+        listedCards: { type: integer }
+        unlistedCards: { type: integer }
+        totalAskUsd: { type: number }
+        totalFmvUsd: { type: number }
+        underFmvCount: { type: integer }
+        overFmvCount: { type: integer }
+        avgLiquidityScore: { type: number }
+        avgPriceConfidenceScore: { type: number }
+        bundleOpportunityCount: { type: integer }
+        activeIntentCount: { type: integer }
+        freshness:
+          type: array
+          items: { $ref: '#/components/schemas/Freshness' }
+    SyncStatusResponse:
+      type: object
+      properties:
+        latestRuns:
+          type: array
+          items:
+            type: object
+            properties:
+              jobName: { type: string }
+              source: { type: string }
+              status: { type: string }
+              startedAt: { type: string, format: date-time }
+              finishedAt: { type: string, format: date-time }
+              recordsSeen: { type: integer }
+              recordsFailed: { type: integer }
+              errorMessage: { type: string }
+        freshness:
+          type: array
+          items: { $ref: '#/components/schemas/Freshness' }

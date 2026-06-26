@@ -1,0 +1,100 @@
+{
+  "name": "renaiss-atlas-build-pack",
+  "files": [
+    {
+      "file": ".env.example",
+      "bytes": 1403,
+      "sha256": "f9b49f7292fbadc188943c9bbd4981b8ab722d7360e595c700672301055b4fd2"
+    },
+    {
+      "file": "AGENTS.md",
+      "bytes": 8348,
+      "sha256": "15ec24a97f142c49c1cb0a8191c159f85887ae1977545e4464afffbc587a7fd8"
+    },
+    {
+      "file": "AI_COPILOT_PROMPTS_AND_SAFETY.md",
+      "bytes": 7156,
+      "sha256": "06fb143cb0e670557123584bfa34d63cd244e72a45b87d76d9ad71ff4fb5386b"
+    },
+    {
+      "file": "API_OPENAPI.yaml",
+      "bytes": 18056,
+      "sha256": "dada5c450398c201f702c2f32b97b79f50cd4f88cb4c1c88624eed32cc173e44"
+    },
+    {
+      "file": "Agent.md",
+      "bytes": 8348,
+      "sha256": "15ec24a97f142c49c1cb0a8191c159f85887ae1977545e4464afffbc587a7fd8"
+    },
+    {
+      "file": "CODEX_TASK_PROMPTS.md",
+      "bytes": 4523,
+      "sha256": "cacaef4a13683e89f68e95611ee41d53e388cabca18db2589991bd75d09d23e3"
+    },
+    {
+      "file": "DATABASE_SCHEMA.sql",
+      "bytes": 19896,
+      "sha256": "ef8020d2aff16dc7f8de85b1094fa7b6c855596381a6b482e3ea492d9ab7a8ac"
+    },
+    {
+      "file": "DATA_CONNECTORS_AND_SDK_MAP.md",
+      "bytes": 9285,
+      "sha256": "1aa3e03e13151a89a28d6fd4bc37e37c65a8508b86b03c4cc2042b68ace5a943"
+    },
+    {
+      "file": "DEPLOYMENT_AND_PRODUCTION_RUNBOOK.md",
+      "bytes": 5087,
+      "sha256": "be950095faa17e98dc2f2cd29e2881534e4f84a7763ba2d2ccb36ac3e6ee33f2"
+    },
+    {
+      "file": "IMPLEMENTATION_PLAN.md",
+      "bytes": 9150,
+      "sha256": "c8c3f4965837e4b6d16b6ce4d4a1c9c272c5781c993a71d05b1daf7ad2c42a3e"
+    },
+    {
+      "file": "PROJECT_KICKOFF_PROMPT_FOR_CODEX.md",
+      "bytes": 1457,
+      "sha256": "792f366d5be32b543a2476254e93a74063efd9861a072f0b27decae54a7db67a"
+    },
+    {
+      "file": "PROJECT_REQUEST.md",
+      "bytes": 12026,
+      "sha256": "8e136c55b920f901d961ccdd4193989fd3b0da58dea2c12de61a028b4ce07d1a"
+    },
+    {
+      "file": "README_INDEX.md",
+      "bytes": 5141,
+      "sha256": "fe569fd3773d71c0e3d8e7ee5e323890379fc39f26a040415991f6ab8c8d6744"
+    },
+    {
+      "file": "SCORING_MODELS_AND_ALGORITHMS.md",
+      "bytes": 7621,
+      "sha256": "36cb6f3b14ab76dcbd391a8e48c031a72d6e2a846e6fccfc8ad4069b3a582dda"
+    },
+    {
+      "file": "SOURCE_MAP_AND_CONTEXT_NOTES.md",
+      "bytes": 10410,
+      "sha256": "543a5095a2cb45e436b5ff821f5ecf4cf2e2657d2f4ac3d76aed7875775b47e4"
+    },
+    {
+      "file": "SUBMISSION_AND_DEMO_STRATEGY.md",
+      "bytes": 6551,
+      "sha256": "ad8027285933c01fb37493609bc9e1e690a965bc1062552bd595e58bfca424fa"
+    },
+    {
+      "file": "TECHNICAL_SPECIFICATION.md",
+      "bytes": 18336,
+      "sha256": "a61236bb4a6943626185d2d68ee7d0c99b06528afeb8218bab9257ac02417549"
+    },
+    {
+      "file": "TESTING_QA_SECURITY.md",
+      "bytes": 4828,
+      "sha256": "8b3c3a165fc3518e4dbe31b9d2378bbc785395eacf4235160968ee5fdeaba78d"
+    },
+    {
+      "file": "UI_UX_PRODUCT_SPEC.md",
+      "bytes": 6053,
+      "sha256": "1215bf5afcbbcd330ad79649d0bfd002dee5fcaa5fc80bd1584b23bd4805de89"
+    }
+  ]
+}

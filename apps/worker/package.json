@@ -1,0 +1,28 @@
+{
+  "name": "@renaiss/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "jobs:sync:renaiss": "tsx src/jobs/sync-renaiss.ts",
+    "jobs:sync:gacha": "tsx src/jobs/sync-gacha.ts",
+    "jobs:score": "tsx src/jobs/score.ts",
+    "jobs:bundles": "tsx src/jobs/bundles.ts",
+    "jobs:intents": "tsx src/jobs/intents.ts",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "p-limit": "^6.2.0",
+    "p-retry": "^6.2.1",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
