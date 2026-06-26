@@ -15,8 +15,8 @@ Included:
 - `apps/api` Hono scaffold with a health endpoint.
 - `apps/worker` no-op job command scaffolds.
 - `apps/discord` slash-command registration scaffold.
-- `packages/core` strict env validation, source schemas, and safety guardrail constants.
-- `packages/db` Drizzle/Postgres scaffold with source-record-first tables.
+- `packages/core` strict Zod domain schemas and deterministic utilities.
+- `packages/db` Postgres + Drizzle schema, migration runner, repositories, and mock-labeled demo seed fixtures.
 - `packages/connectors` typed connector contract.
 - `packages/ai` schema-validated AI memo output contract and prohibited phrase catalog.
 - `packages/ui` optional shared UI utility package.
@@ -61,7 +61,20 @@ pnpm jobs:intents
 pnpm discord:register
 ```
 
-The job, seed, and Discord scripts are safe scaffold commands until the later implementation phases wire real logic.
+The job and Discord scripts are safe scaffold commands until later implementation phases wire real logic. The DB scripts expect `DATABASE_URL`; set `DATABASE_SSL=true` for Supabase if your URL does not already include `sslmode=require`.
+
+## Database
+
+`packages/db` maps `DATABASE_SCHEMA.sql` into Drizzle tables and includes an idempotent SQL migration at `packages/db/migrations/0000_initial.sql`.
+
+```bash
+pnpm db:migrate
+pnpm db:seed
+```
+
+`pnpm db:migrate` applies the checked-in SQL migration. It uses `IF NOT EXISTS` table/index creation and duplicate-safe enum blocks, so it is suitable for a Supabase project where the schema has already been applied.
+
+`pnpm db:seed` inserts clearly labeled demo/mock source records, seven wallet cards, latest price rows, external comp accepted/rejected examples, pack activity for RenaCrypt and OMEGA, an active intent, two bundles, scores, an action recommendation, an AI memo, a wallet snapshot, and a quest.
 
 ## Data Sources
 
@@ -80,8 +93,8 @@ Every connector must capture source URL, fetched timestamp, raw source record or
 
 ## Next Implementation Phase
 
-Phase 1 should add the full core domain schemas and utilities:
+Phase 3 should add DB-backed service wiring and connector persistence:
 
-- card, price, external comp, pack, intent, bundle, score, action, and AI memo schemas;
-- money, serial, source, freshness, and hash utilities;
-- focused tests for price conversion, serial parsing, source IDs, schema parsing, and freshness labels.
+- repository integration tests against disposable Postgres;
+- Renaiss marketplace connector persistence into source records, cards, and prices;
+- worker commands that create sync runs and data-quality events.
