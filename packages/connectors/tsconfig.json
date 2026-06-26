@@ -1,4 +1,5 @@
 {
+  "$schema": "../../config/tsconfig.schema.json",
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,

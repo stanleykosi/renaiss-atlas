@@ -1,8 +1,8 @@
 {
+  "$schema": "../../config/tsconfig.schema.json",
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "allowJs": true,
-    "baseUrl": ".",
     "incremental": true,
     "jsx": "preserve",
     "noEmit": true,
