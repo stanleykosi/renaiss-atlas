@@ -42,7 +42,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
   CREATE TYPE score_type AS ENUM (
-    'liquidity','deal','price_confidence','external_comp_confidence','listing_health','demand','bundle','collector_premium','collateral_readiness','wallet_action_priority','quest_suitability'
+    'activity_velocity','offer_depth','price_consensus','liquidity','deal','price_confidence','external_comp_confidence','listing_health','demand','bundle','collector_premium','collateral_readiness','wallet_action_priority','quest_suitability'
   );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 

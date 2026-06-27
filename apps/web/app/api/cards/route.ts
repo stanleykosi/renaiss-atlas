@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { listMarketCards } from "@/lib/market-data";
-import type { MarketFilters, MarketSortKey } from "@/lib/market-types";
+import type { MarketFilters } from "@/lib/market-types";
 
 const CardListQuerySchema = z.object({
   q: z.string().trim().default(""),
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     grader: query.data.grader.length > 0 ? query.data.grader : "all",
     grade: query.data.grade.length > 0 ? query.data.grade : "all",
     mismatchesOnly: query.data.mismatchesOnly,
-    sortBy: query.data.sortBy as MarketSortKey,
+    sortBy: query.data.sortBy,
     sortDir: query.data.sortDir
   };
 

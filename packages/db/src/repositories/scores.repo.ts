@@ -8,7 +8,21 @@ export type NewScore = typeof scores.$inferInsert;
 export function createScoresRepo(db: AtlasDb) {
   return {
     async create(input: NewScore) {
-      const [score] = await db.insert(scores).values(input).returning();
+      const [score] = await db
+        .insert(scores)
+        .values(input)
+        .onConflictDoUpdate({
+          target: [scores.entityType, scores.entityId, scores.scoreType, scores.inputsHash],
+          set: {
+            scoreValue: input.scoreValue,
+            confidence: input.confidence,
+            reasonsJson: input.reasonsJson,
+            riskFlagsJson: input.riskFlagsJson,
+            computedAt: input.computedAt,
+            expiresAt: input.expiresAt
+          }
+        })
+        .returning();
       return score;
     },
 

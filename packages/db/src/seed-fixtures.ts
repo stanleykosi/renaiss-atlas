@@ -79,7 +79,7 @@ export const demoSourceRecords = [
     fetchedAt: observedAt,
     parseStatus: "parsed"
   }
-] satisfies Array<typeof sourceRecords.$inferInsert>;
+] satisfies (typeof sourceRecords.$inferInsert)[];
 
 export const demoCards = [
   {
@@ -264,7 +264,7 @@ export const demoCards = [
     lastSourceRecordId: DEMO_MARKET_SOURCE_ID,
     metadata: { mockData: true, demoCase: "omega pack activity" }
   }
-] satisfies Array<typeof cards.$inferInsert>;
+] satisfies (typeof cards.$inferInsert)[];
 
 export const demoPriceSnapshots: DemoPriceSnapshot[] = [
   {
@@ -358,7 +358,7 @@ export const demoLatestPrices = demoPriceSnapshots.map((snapshot) => ({
   isListed: snapshot.isListed,
   observedAt: snapshot.observedAt,
   updatedAt: observedAt
-})) satisfies Array<typeof latestCardPrices.$inferInsert>;
+})) satisfies (typeof latestCardPrices.$inferInsert)[];
 
 export const demoExternalPrices = [
   {
@@ -401,7 +401,7 @@ export const demoExternalPrices = [
     fetchedAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof externalPriceSnapshots.$inferInsert>;
+] satisfies (typeof externalPriceSnapshots.$inferInsert)[];
 
 export const demoPackActivities = [
   {
@@ -432,7 +432,7 @@ export const demoPackActivities = [
     matchedTokenId: "demo-card-007",
     metadata: { mockData: true, observedIntervalNotOfficialOdds: true }
   }
-] satisfies Array<typeof packActivities.$inferInsert>;
+] satisfies (typeof packActivities.$inferInsert)[];
 
 export const demoIntents = [
   {
@@ -453,7 +453,7 @@ export const demoIntents = [
     updatedAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof intents.$inferInsert>;
+] satisfies (typeof intents.$inferInsert)[];
 
 export const demoIntentMatches = [
   {
@@ -465,7 +465,7 @@ export const demoIntentMatches = [
     reasons: ["TCG match", "language match", "grade match", "price range match"],
     createdAt: observedAt
   }
-] satisfies Array<typeof intentMatches.$inferInsert>;
+] satisfies (typeof intentMatches.$inferInsert)[];
 
 export const demoBundles = [
   {
@@ -500,7 +500,7 @@ export const demoBundles = [
     updatedAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof bundles.$inferInsert>;
+] satisfies (typeof bundles.$inferInsert)[];
 
 export const demoBundleItems = [
   {
@@ -527,7 +527,7 @@ export const demoBundleItems = [
     position: 2,
     role: "same_character"
   }
-] satisfies Array<typeof bundleItems.$inferInsert>;
+] satisfies (typeof bundleItems.$inferInsert)[];
 
 export const demoScores: DemoScore[] = [
   {
@@ -566,7 +566,7 @@ export const demoScores: DemoScore[] = [
     riskFlagsJson: ["mock_data"],
     computedAt: observedAt
   }
-] satisfies Array<typeof scores.$inferInsert>;
+] satisfies (typeof scores.$inferInsert)[];
 
 export const demoLatestScores = demoScores.map((score) => ({
   entityType: score.entityType,
@@ -576,7 +576,7 @@ export const demoLatestScores = demoScores.map((score) => ({
   scoreValue: score.scoreValue,
   confidence: score.confidence,
   computedAt: score.computedAt
-})) satisfies Array<typeof latestScores.$inferInsert>;
+})) satisfies (typeof latestScores.$inferInsert)[];
 
 export const demoActions = [
   {
@@ -598,7 +598,7 @@ export const demoActions = [
     createdAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof actionRecommendations.$inferInsert>;
+] satisfies (typeof actionRecommendations.$inferInsert)[];
 
 export const demoAiMemos = [
   {
@@ -622,7 +622,7 @@ export const demoAiMemos = [
     createdAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof aiMemos.$inferInsert>;
+] satisfies (typeof aiMemos.$inferInsert)[];
 
 export const demoWalletSnapshots = [
   {
@@ -639,7 +639,7 @@ export const demoWalletSnapshots = [
     computedAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof walletSnapshots.$inferInsert>;
+] satisfies (typeof walletSnapshots.$inferInsert)[];
 
 export const demoQuests = [
   {
@@ -657,4 +657,4 @@ export const demoQuests = [
     createdAt: observedAt,
     metadata: { mockData: true }
   }
-] satisfies Array<typeof collectionQuests.$inferInsert>;
+] satisfies (typeof collectionQuests.$inferInsert)[];

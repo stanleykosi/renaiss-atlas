@@ -173,6 +173,9 @@ importers:
       '@renaiss/connectors':
         specifier: workspace:*
         version: link:../../packages/connectors
+      '@renaiss/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@renaiss/db':
         specifier: workspace:*
         version: link:../../packages/db

@@ -1,6 +1,10 @@
 export function extractSerialDigits(value: unknown): string | null {
   if (value == null) return null;
 
+  if (typeof value !== "string" && typeof value !== "number" && typeof value !== "bigint") {
+    return null;
+  }
+
   const raw = String(value).trim();
   if (raw.length === 0) return null;
 
@@ -31,4 +35,3 @@ export function isAdjacentSerial(first: unknown, second: unknown): boolean {
   const diff = firstSerial > secondSerial ? firstSerial - secondSerial : secondSerial - firstSerial;
   return diff === 1n;
 }
-

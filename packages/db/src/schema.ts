@@ -51,6 +51,9 @@ export const actionType = pgEnum("action_type", [
   "SHARE"
 ]);
 export const scoreType = pgEnum("score_type", [
+  "activity_velocity",
+  "offer_depth",
+  "price_consensus",
   "liquidity",
   "deal",
   "price_confidence",
@@ -315,9 +318,7 @@ export const bundleItems = pgTable(
     role: text("role"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
-  (table) => ({
-    pk: primaryKey({ columns: [table.bundleId, table.tokenId] })
-  })
+  (table) => [primaryKey({ columns: [table.bundleId, table.tokenId] })]
 );
 
 export const scores = pgTable("scores", {
@@ -347,9 +348,7 @@ export const latestScores = pgTable(
     confidence: confidenceLabel("confidence").notNull(),
     computedAt: timestamp("computed_at", { withTimezone: true }).notNull()
   },
-  (table) => ({
-    pk: primaryKey({ columns: [table.entityType, table.entityId, table.scoreType] })
-  })
+  (table) => [primaryKey({ columns: [table.entityType, table.entityId, table.scoreType] })]
 );
 
 export const actionRecommendations = pgTable("action_recommendations", {

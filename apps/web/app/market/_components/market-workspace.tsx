@@ -10,6 +10,7 @@ import {
   DollarSign,
   Eye,
   Filter,
+  Info,
   Search,
   TrendingDown
 } from "lucide-react";
@@ -18,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
 import {
   Sheet,
@@ -35,7 +37,13 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { applyMarketFilters, defaultMarketFilters, toggleSort } from "@/lib/market-filters";
-import type { MarketCard, MarketFilters, MarketOverview, MarketSortKey } from "@/lib/market-types";
+import type {
+  MarketCard,
+  MarketFilters,
+  MarketOverview,
+  MarketScore,
+  MarketSortKey
+} from "@/lib/market-types";
 
 type MarketWorkspaceProps = {
   initialData: MarketOverview;
@@ -62,6 +70,10 @@ function formatMoney(value: number | null) {
 function formatScore(value: number | null) {
   if (value == null) return "N/A";
   return value.toFixed(0);
+}
+
+function scoreTypeLabel(value: string) {
+  return value.replaceAll("_", " ");
 }
 
 function formatPct(value: number | null) {
@@ -298,8 +310,16 @@ export function MarketWorkspace({ initialData }: MarketWorkspaceProps) {
                     </TableCell>
                     <TableCell className="font-mono">{formatMoney(card.askPriceUsd)}</TableCell>
                     <TableCell className="font-mono">{formatMoney(card.fmvUsd)}</TableCell>
-                    <TableCell className="font-mono">{formatScore(card.liquidityScore)}</TableCell>
-                    <TableCell className="font-mono">{formatScore(card.dealScore)}</TableCell>
+                    <TableCell>
+                      <ScoreCell
+                        label="Liquidity"
+                        score={card.scores.liquidity}
+                        value={card.liquidityScore}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <ScoreCell label="Deal" score={card.scores.deal} value={card.dealScore} />
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(card.observedAt)}</TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -358,6 +378,72 @@ function KpiCard({
   );
 }
 
+function ScoreCell({
+  label,
+  score,
+  value
+}: {
+  label: string;
+  score: MarketScore | undefined;
+  value: number | null;
+}) {
+  const displayValue = score?.value ?? value;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          aria-label={`${label} score details`}
+          variant="ghost"
+          className="h-8 min-w-16 justify-start px-2 font-mono"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          {formatScore(displayValue)}
+          <Info className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">{label}</p>
+            <p className="mt-1 font-mono text-2xl font-semibold">{formatScore(displayValue)}</p>
+          </div>
+          <Badge variant={score?.confidence === "high" ? "default" : "secondary"}>
+            {score?.confidence ?? "low"}
+          </Badge>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge variant="outline">{score?.source ?? "deterministic"}</Badge>
+          <Badge variant="outline">{score == null ? label.toLowerCase() : scoreTypeLabel(score.scoreType)}</Badge>
+        </div>
+        <div className="mt-4 space-y-2">
+          {(score?.reasons.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground">No score reasons available.</p>
+          ) : (
+            score?.reasons.map((reason) => (
+              <p key={reason} className="text-sm text-muted-foreground">
+                {reason}
+              </p>
+            ))
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(score?.riskFlags.length ?? 0) === 0 ? (
+            <Badge variant="outline">no flags</Badge>
+          ) : (
+            score?.riskFlags.map((flag) => (
+              <Badge key={flag} variant={flag === "mock_data" ? "warning" : "destructive"}>
+                {flag.replaceAll("_", " ")}
+              </Badge>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function SortableHead({
   sortKey,
   filters,
@@ -385,6 +471,20 @@ function SortableHead({
 }
 
 function CardDrawer({ card }: { card: MarketCard }) {
+  const scoreRows: [string, MarketScore | undefined][] = [
+    ["Liquidity", card.scores.liquidity],
+    ["Deal", card.scores.deal],
+    ["Price confidence", card.scores.price_confidence],
+    ["External comp confidence", card.scores.external_comp_confidence],
+    ["Activity velocity", card.scores.activity_velocity],
+    ["Offer depth", card.scores.offer_depth],
+    ["Price consensus", card.scores.price_consensus],
+    ["Listing health", card.scores.listing_health],
+    ["Demand", card.scores.demand],
+    ["Collector premium", card.scores.collector_premium],
+    ["Collateral readiness", card.scores.collateral_readiness]
+  ];
+
   return (
     <>
       <SheetHeader>
@@ -423,6 +523,30 @@ function CardDrawer({ card }: { card: MarketCard }) {
                 </Badge>
               ))
             )}
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-md border p-4">
+          <h3 className="text-sm font-medium">Scores</h3>
+          <div className="mt-3 grid gap-3">
+            {scoreRows.map(([label, score]) => (
+              <div key={label} className="rounded-md border bg-secondary/30 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="mt-1 font-mono text-lg font-semibold">
+                      {formatScore(score?.value ?? null)}
+                    </p>
+                  </div>
+                  <Badge variant={score?.confidence === "high" ? "default" : "secondary"}>
+                    {score?.confidence ?? "low"}
+                  </Badge>
+                </div>
+                {(score?.reasons.length ?? 0) === 0 ? null : (
+                  <p className="mt-2 text-xs text-muted-foreground">{score?.reasons[0]}</p>
+                )}
+              </div>
+            ))}
           </div>
         </section>
 

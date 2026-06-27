@@ -21,6 +21,10 @@ function isRecord(value: unknown): value is UnknownRecord {
 
 function asString(value: unknown): string | null {
   if (value == null) return null;
+  if (typeof value !== "string" && typeof value !== "number" && typeof value !== "bigint") {
+    return null;
+  }
+
   const raw = String(value).trim();
   return raw.length > 0 ? raw : null;
 }

@@ -8,6 +8,10 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../../packages/db" }, { "path": "../../packages/connectors" }],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/db" },
+    { "path": "../../packages/connectors" }
+  ],
   "include": ["src/**/*.ts"]
 }

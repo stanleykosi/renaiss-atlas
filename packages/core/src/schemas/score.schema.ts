@@ -5,6 +5,9 @@ import { ConfidenceLabelSchema } from "../constants/confidence.js";
 export const ScoreEntityTypeSchema = z.enum(["card", "wallet", "bundle", "intent", "pack"]);
 
 export const ScoreTypeSchema = z.enum([
+  "activity_velocity",
+  "offer_depth",
+  "price_consensus",
   "liquidity",
   "deal",
   "price_confidence",
@@ -33,4 +36,3 @@ export const ScoreSchema = z.object({
 export type ScoreEntityType = z.infer<typeof ScoreEntityTypeSchema>;
 export type ScoreType = z.infer<typeof ScoreTypeSchema>;
 export type Score = z.infer<typeof ScoreSchema>;
-

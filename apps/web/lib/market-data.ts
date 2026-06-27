@@ -1,16 +1,30 @@
-import { freshnessLabel } from "@renaiss/core";
 import {
+  freshnessLabel,
+  scoreCard,
+  type DeterministicCardScoringInput,
+  type DeterministicStoredScore,
+  type StoredCardScoreType
+} from "@renaiss/core";
+import {
+  bundleItems,
+  bundles,
   createDbClient,
   DatabaseEnvSchema,
+  demoBundleItems,
+  demoBundles,
   demoCards,
   demoExternalPrices,
+  demoIntentMatches,
   demoLatestPrices,
-  demoLatestScores,
+  demoPackActivities,
+  demoScores,
   sourceRecords,
   cards as cardsTable,
-  latestCardPrices,
-  latestScores,
   externalPriceSnapshots,
+  intentMatches,
+  latestCardPrices,
+  packActivities,
+  scores as scoresTable,
   syncRuns
 } from "@renaiss/db";
 
@@ -26,18 +40,38 @@ import type {
   MarketFilters,
   MarketHealth,
   MarketOverview,
+  MarketScore,
   SyncStatus
 } from "@/lib/market-types";
 
 const MARKET_STALE_AFTER_MS = 1000 * 60 * 60 * 48;
+const CARD_SCORE_TYPES = [
+  "activity_velocity",
+  "offer_depth",
+  "price_consensus",
+  "liquidity",
+  "deal",
+  "price_confidence",
+  "external_comp_confidence",
+  "listing_health",
+  "demand",
+  "collector_premium",
+  "collateral_readiness"
+] as const satisfies readonly StoredCardScoreType[];
+
+const cardScoreTypeSet = new Set<string>(CARD_SCORE_TYPES);
 
 type DbRows = {
-  cards: Array<typeof cardsTable.$inferSelect>;
-  prices: Array<typeof latestCardPrices.$inferSelect>;
-  scores: Array<typeof latestScores.$inferSelect>;
-  externalComps: Array<typeof externalPriceSnapshots.$inferSelect>;
-  sourceRecords: Array<typeof sourceRecords.$inferSelect>;
-  syncRuns: Array<typeof syncRuns.$inferSelect>;
+  cards: (typeof cardsTable.$inferSelect)[];
+  prices: (typeof latestCardPrices.$inferSelect)[];
+  scores: (typeof scoresTable.$inferSelect)[];
+  externalComps: (typeof externalPriceSnapshots.$inferSelect)[];
+  intentMatches: (typeof intentMatches.$inferSelect)[];
+  bundles: (typeof bundles.$inferSelect)[];
+  bundleItems: (typeof bundleItems.$inferSelect)[];
+  packActivities: (typeof packActivities.$inferSelect)[];
+  sourceRecords: (typeof sourceRecords.$inferSelect)[];
+  syncRuns: (typeof syncRuns.$inferSelect)[];
 };
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -62,6 +96,27 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
     : [];
+}
+
+function isStoredCardScoreType(value: string): value is StoredCardScoreType {
+  return cardScoreTypeSet.has(value);
+}
+
+function confidenceLabel(value: string): ConfidenceLabel {
+  return value === "high" || value === "medium" || value === "low" ? value : "low";
+}
+
+function newerComputedAt(left: string | null | undefined, right: string | null | undefined) {
+  if (right == null) return false;
+  if (left == null) return true;
+  return Date.parse(right) > Date.parse(left);
+}
+
+function q3(values: number[]): number | null {
+  const sorted = values.filter(Number.isFinite).sort((left, right) => left - right);
+  if (sorted.length === 0) return null;
+  const index = Math.floor((sorted.length - 1) * 0.75);
+  return sorted[index] ?? null;
 }
 
 function freshnessFor(observedAt: string | null, now: Date) {
@@ -96,15 +151,82 @@ function sourceLabel(sourceMode: DataSourceMode, mockData: boolean) {
   return mockData ? "Mock database seed" : "Postgres";
 }
 
-function unique(values: Array<string | null | undefined>) {
+function unique(values: (string | null | undefined)[]) {
   return [...new Set(values.filter((value): value is string => value != null && value.length > 0))].sort(
     (left, right) => left.localeCompare(right, undefined, { numeric: true })
   );
 }
 
+function marketScoreFromDeterministic(score: DeterministicStoredScore): MarketScore {
+  return {
+    scoreType: score.scoreType,
+    value: score.value,
+    confidence: score.confidence,
+    reasons: score.reasons,
+    riskFlags: score.riskFlags,
+    computedAt: score.computedAt,
+    inputsHash: score.inputsHash,
+    source: "deterministic"
+  };
+}
+
+function marketScoreFromRow(score: {
+  scoreType: string;
+  scoreValue: string | number;
+  confidence: string;
+  reasonsJson?: unknown;
+  riskFlagsJson?: unknown;
+  inputsHash?: string | null;
+  computedAt?: Date | string | null;
+}): MarketScore | null {
+  if (!isStoredCardScoreType(score.scoreType)) return null;
+  const value = toNumber(score.scoreValue);
+  if (value == null) return null;
+
+  return {
+    scoreType: score.scoreType,
+    value,
+    confidence: confidenceLabel(score.confidence),
+    reasons: stringArray(score.reasonsJson),
+    riskFlags: stringArray(score.riskFlagsJson),
+    computedAt: toIso(score.computedAt) ?? new Date(0).toISOString(),
+    inputsHash: score.inputsHash ?? null,
+    source: "persisted"
+  };
+}
+
+function latestScoreMap(
+  scores: {
+    entityType?: string;
+    entityId: string;
+    scoreType: string;
+    scoreValue: string | number;
+    confidence: string;
+    reasonsJson?: unknown;
+    riskFlagsJson?: unknown;
+    inputsHash?: string | null;
+    computedAt?: Date | string | null;
+  }[]
+) {
+  const map = new Map<string, MarketScore>();
+
+  for (const score of scores) {
+    if (score.entityType != null && score.entityType !== "card") continue;
+    const marketScore = marketScoreFromRow(score);
+    if (marketScore == null) continue;
+    const key = `${score.entityId}:${marketScore.scoreType}`;
+    const current = map.get(key);
+    if (current == null || newerComputedAt(current.computedAt, marketScore.computedAt)) {
+      map.set(key, marketScore);
+    }
+  }
+
+  return map;
+}
+
 function buildMarketCards(input: {
   sourceMode: DataSourceMode;
-  cards: Array<{
+  cards: {
     tokenId: string;
     itemId?: string | null;
     name: string;
@@ -125,8 +247,8 @@ function buildMarketCards(input: {
     lastSeenAt?: Date | string | null;
     lastSourceRecordId?: string | null;
     metadata?: unknown;
-  }>;
-  prices: Array<{
+  }[];
+  prices: {
     tokenId: string;
     askPriceUsd?: string | number | null;
     fmvUsd?: string | number | null;
@@ -137,14 +259,19 @@ function buildMarketCards(input: {
     isListed: boolean;
     observedAt?: Date | string | null;
     priceSnapshotId?: string | null;
-  }>;
-  scores: Array<{
+  }[];
+  scores: {
+    entityType?: string;
     entityId: string;
     scoreType: string;
     scoreValue: string | number;
     confidence: string;
-  }>;
-  externalComps: Array<{
+    reasonsJson?: unknown;
+    riskFlagsJson?: unknown;
+    inputsHash?: string | null;
+    computedAt?: Date | string | null;
+  }[];
+  externalComps: {
     id?: string;
     tokenId: string;
     platform: string;
@@ -155,14 +282,36 @@ function buildMarketCards(input: {
     rejected: boolean;
     rejectionReason?: string | null;
     fetchedAt?: Date | string | null;
-  }>;
+  }[];
+  intentMatches?: {
+    tokenId: string;
+    matchScore: string | number;
+    createdAt?: Date | string | null;
+  }[];
+  bundles?: {
+    id: string;
+    bundleType: string;
+  }[];
+  bundleItems?: {
+    bundleId: string;
+    tokenId: string;
+  }[];
+  packActivities?: {
+    matchedTokenId?: string | null;
+  }[];
   now: Date;
 }) {
   const priceByToken = new Map(input.prices.map((price) => [price.tokenId, price]));
-  const scoreByTokenAndType = new Map(
-    input.scores.map((score) => [`${score.entityId}:${score.scoreType}`, score])
-  );
+  const scoreByTokenAndType = latestScoreMap(input.scores);
   const compsByToken = new Map<string, MarketExternalComp[]>();
+  const intentMatchesByToken = new Map<string, NonNullable<typeof input.intentMatches>>();
+  const bundleById = new Map((input.bundles ?? []).map((bundle) => [bundle.id, bundle]));
+  const bundleTypesByToken = new Map<string, Set<string>>();
+  const packOriginTokens = new Set(
+    (input.packActivities ?? [])
+      .map((activity) => activity.matchedTokenId)
+      .filter((tokenId): tokenId is string => tokenId != null && tokenId.length > 0)
+  );
 
   for (const comp of input.externalComps) {
     const current = compsByToken.get(comp.tokenId) ?? [];
@@ -180,28 +329,92 @@ function buildMarketCards(input: {
     compsByToken.set(comp.tokenId, current);
   }
 
+  for (const match of input.intentMatches ?? []) {
+    const current = intentMatchesByToken.get(match.tokenId) ?? [];
+    current.push(match);
+    intentMatchesByToken.set(match.tokenId, current);
+  }
+
+  for (const item of input.bundleItems ?? []) {
+    const bundle = bundleById.get(item.bundleId);
+    if (bundle == null) continue;
+    const current = bundleTypesByToken.get(item.tokenId) ?? new Set<string>();
+    current.add(bundle.bundleType);
+    bundleTypesByToken.set(item.tokenId, current);
+  }
+
+  const highFmvThreshold = q3(input.prices.map((price) => toNumber(price.fmvUsd) ?? 0));
+
   return input.cards.map((card): MarketCard => {
     const price = priceByToken.get(card.tokenId);
-    const liquidityScore = toNumber(scoreByTokenAndType.get(`${card.tokenId}:liquidity`)?.scoreValue);
-    const dealScore = toNumber(scoreByTokenAndType.get(`${card.tokenId}:deal`)?.scoreValue);
-    const priceConfidenceScore = toNumber(
-      scoreByTokenAndType.get(`${card.tokenId}:price_confidence`)?.scoreValue
-    );
-    const externalCompConfidenceScore = toNumber(
-      scoreByTokenAndType.get(`${card.tokenId}:external_comp_confidence`)?.scoreValue
-    );
     const askPriceUsd = toNumber(price?.askPriceUsd);
     const fmvUsd = toNumber(price?.fmvUsd);
+    const offerPriceUsd = toNumber(price?.offerPriceUsd);
+    const topOfferUsd = toNumber(price?.topOfferUsd);
+    const lastSaleUsd = toNumber(price?.lastSaleUsd);
+    const buybackBaseValueUsd = toNumber(price?.buybackBaseValueUsd);
     const metadata = toRecord(card.metadata);
     const mockData = metadata["mockData"] === true || input.sourceMode === "seed";
     const observedAt = toIso(price?.observedAt ?? card.lastSeenAt);
-    const riskFlags = [
+    const externalComps = compsByToken.get(card.tokenId) ?? [];
+    const bundleTypes = bundleTypesByToken.get(card.tokenId) ?? new Set<string>();
+    const scorerInput: DeterministicCardScoringInput = {
+      tokenId: card.tokenId,
+      status: card.status,
+      askPriceUsd,
+      fmvUsd,
+      offerPriceUsd,
+      topOfferUsd,
+      lastSaleUsd,
+      buybackBaseValueUsd,
+      observedAt,
+      lastSaleAt: lastSaleUsd == null ? null : observedAt,
+      askChangedAt: observedAt,
+      externalComps: externalComps.map((comp) => ({
+        priceUsd: comp.currentPriceUsd,
+        averagePriceUsd: comp.averagePriceUsd,
+        matchConfidence: comp.matchConfidence,
+        rejected: comp.rejected,
+        fetchedAt: comp.fetchedAt
+      })),
+      intentMatches: (intentMatchesByToken.get(card.tokenId) ?? []).map((match) => ({
+        matchScore: toNumber(match.matchScore) ?? 0,
+        createdAt: match.createdAt ?? null
+      })),
+      adjacentCertExists: bundleTypes.has("sequential_cert_pair"),
+      sameCharacterBundleExists: bundleTypes.has("same_character"),
+      sameSetBundleExists: bundleTypes.has("same_set"),
+      packOriginStory: packOriginTokens.has(card.tokenId),
+      highFmvPercentile: highFmvThreshold == null ? false : fmvUsd != null && fmvUsd >= highFmvThreshold,
+      grade: card.grade ?? null,
+      mockData,
+      now: input.now
+    };
+    const deterministicScores = Object.fromEntries(
+      Object.values(scoreCard(scorerInput).scores).map((score) => [
+        score.scoreType,
+        marketScoreFromDeterministic(score)
+      ])
+    ) as Partial<Record<StoredCardScoreType, MarketScore>>;
+    const persistedScores: Partial<Record<StoredCardScoreType, MarketScore>> = {};
+    for (const scoreType of CARD_SCORE_TYPES) {
+      const score = scoreByTokenAndType.get(`${card.tokenId}:${scoreType}`);
+      if (score != null) persistedScores[scoreType] = score;
+    }
+    const scoreDetails: Partial<Record<StoredCardScoreType, MarketScore>> = {
+      ...deterministicScores,
+      ...persistedScores
+    };
+    const liquidityScore = scoreDetails.liquidity?.value ?? null;
+    const dealScore = scoreDetails.deal?.value ?? null;
+    const priceConfidenceScore = scoreDetails.price_confidence?.value ?? null;
+    const externalCompConfidenceScore = scoreDetails.external_comp_confidence?.value ?? null;
+    const riskFlags = unique([
       ...(mockData ? ["mock_data"] : []),
       ...(price?.isListed === true && askPriceUsd == null ? ["listed_without_ask"] : []),
-      ...((compsByToken.get(card.tokenId) ?? []).some((comp) => comp.rejected)
-        ? ["external_comp_mismatch"]
-        : [])
-    ];
+      ...(externalComps.some((comp) => comp.rejected) ? ["external_comp_mismatch"] : []),
+      ...Object.values(scoreDetails).flatMap((score) => score.riskFlags)
+    ]);
 
     const scores = { liquidityScore, dealScore, priceConfidenceScore };
 
@@ -225,14 +438,15 @@ function buildMarketCards(input: {
       status: card.status,
       askPriceUsd,
       fmvUsd,
-      offerPriceUsd: toNumber(price?.offerPriceUsd),
-      topOfferUsd: toNumber(price?.topOfferUsd),
-      lastSaleUsd: toNumber(price?.lastSaleUsd),
-      buybackBaseValueUsd: toNumber(price?.buybackBaseValueUsd),
+      offerPriceUsd,
+      topOfferUsd,
+      lastSaleUsd,
+      buybackBaseValueUsd,
       liquidityScore,
       dealScore,
       priceConfidenceScore,
       externalCompConfidenceScore,
+      scores: scoreDetails,
       confidence: confidenceFromScores(scores),
       dealDeltaPct: dealDelta(askPriceUsd, fmvUsd),
       observedAt,
@@ -244,7 +458,7 @@ function buildMarketCards(input: {
       riskFlags,
       mockData,
       demoCase: typeof metadata["demoCase"] === "string" ? metadata["demoCase"] : null,
-      externalComps: compsByToken.get(card.tokenId) ?? []
+      externalComps
     };
   });
 }
@@ -285,8 +499,8 @@ function buildMarketHealth(cards: readonly MarketCard[], sourceMode: DataSourceM
 
 function buildSyncStatus(input: {
   sourceMode: DataSourceMode;
-  sourceRows: Array<{ source: string; fetchedAt: Date | string }>;
-  syncRuns: Array<{
+  sourceRows: { source: string; fetchedAt: Date | string }[];
+  syncRuns: {
     id: string;
     jobName: string;
     source: string | null;
@@ -295,7 +509,7 @@ function buildSyncStatus(input: {
     finishedAt: Date | string | null;
     recordsSeen: number;
     recordsFailed: number;
-  }>;
+  }[];
   cards: readonly MarketCard[];
   now: Date;
 }): SyncStatus {
@@ -322,7 +536,7 @@ function buildSyncStatus(input: {
     staleAfterMs: MARKET_STALE_AFTER_MS
   });
   const freshnessEntry: SyncStatus["freshness"][number] = {
-    source: String(freshness.source),
+    source: freshness.source,
     status: freshness.status
   };
   if (freshness.observedAt != null) {
@@ -369,8 +583,12 @@ function seedRows(now: Date): MarketOverview {
     sourceMode: "seed",
     cards: demoCards,
     prices,
-    scores: demoLatestScores,
+    scores: demoScores,
     externalComps: demoExternalPrices,
+    intentMatches: demoIntentMatches,
+    bundles: demoBundles,
+    bundleItems: demoBundleItems,
+    packActivities: demoPackActivities,
     now
   });
   const syncStatus = buildSyncStatus({
@@ -410,11 +628,26 @@ async function readDbRows(): Promise<DbRows | null> {
   });
 
   try {
-    const [cards, prices, scores, externalComps, sourceRows, runRows] = await Promise.all([
+    const [
+      cards,
+      prices,
+      scoreRows,
+      externalComps,
+      intentMatchRows,
+      bundleRows,
+      bundleItemRows,
+      packActivityRows,
+      sourceRows,
+      runRows
+    ] = await Promise.all([
       database.db.select().from(cardsTable),
       database.db.select().from(latestCardPrices),
-      database.db.select().from(latestScores),
+      database.db.select().from(scoresTable),
       database.db.select().from(externalPriceSnapshots),
+      database.db.select().from(intentMatches),
+      database.db.select().from(bundles),
+      database.db.select().from(bundleItems),
+      database.db.select().from(packActivities),
       database.db.select().from(sourceRecords),
       database.db.select().from(syncRuns)
     ]);
@@ -422,8 +655,12 @@ async function readDbRows(): Promise<DbRows | null> {
     return {
       cards,
       prices,
-      scores,
+      scores: scoreRows,
       externalComps,
+      intentMatches: intentMatchRows,
+      bundles: bundleRows,
+      bundleItems: bundleItemRows,
+      packActivities: packActivityRows,
       sourceRecords: sourceRows,
       syncRuns: runRows
     };
@@ -452,6 +689,10 @@ export async function getMarketOverview(): Promise<MarketOverview> {
     prices: dbRows.prices,
     scores: dbRows.scores,
     externalComps: dbRows.externalComps,
+    intentMatches: dbRows.intentMatches,
+    bundles: dbRows.bundles,
+    bundleItems: dbRows.bundleItems,
+    packActivities: dbRows.packActivities,
     now
   });
   const syncStatus = buildSyncStatus({

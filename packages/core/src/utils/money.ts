@@ -12,7 +12,9 @@ function normalizeIntegerInput(value: unknown): string | null {
     return String(value);
   }
 
-  const raw = String(value).trim();
+  if (typeof value !== "string") return null;
+
+  const raw = value.trim();
   if (PRICE_SENTINELS.has(raw)) return null;
   if (!/^\d+$/.test(raw)) return null;
 
@@ -48,7 +50,9 @@ export function parseCentsUsd(value: unknown): string | null {
 export function parseRscFmv(value: unknown): string | null {
   if (value == null) return null;
 
-  const raw = String(value).trim();
+  if (typeof value !== "string") return null;
+
+  const raw = value.trim();
   const match = /^\$?n(\d+)$/.exec(raw);
   if (match == null) return null;
 
@@ -67,4 +71,3 @@ export function formatUsd(value: string | number | null | undefined): string {
     maximumFractionDigits: 2
   }).format(amount);
 }
-

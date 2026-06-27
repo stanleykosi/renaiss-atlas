@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { RenaissMarketplaceConfig, RenaissMarketplaceStrategy } from "./types.js";
+import type { RenaissMarketplaceConfig } from "./types.js";
 
 const booleanFromEnv = z.preprocess(
   (value) => (value == null || value === "" ? "true" : value),
@@ -46,7 +46,7 @@ export function marketplaceConfigFromEnv(
   const maxPagesFromLimit = Math.ceil(env.RENAISS_SYNC_LIMIT / env.RENAISS_SYNC_PAGE_SIZE);
 
   return {
-    strategy: env.RENAISS_MARKETPLACE_STRATEGY as RenaissMarketplaceStrategy,
+    strategy: env.RENAISS_MARKETPLACE_STRATEGY,
     v0Url: env.RENAISS_V0_MARKETPLACE_URL,
     trpcUrl: env.RENAISS_TRPC_MARKETPLACE_URL,
     pageSize: env.RENAISS_SYNC_PAGE_SIZE,

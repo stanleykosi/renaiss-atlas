@@ -34,6 +34,10 @@ function isRecord(value: unknown): value is UnknownRecord {
   return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "string" || !/^\d+$/.test(value.trim())) return null;
@@ -64,7 +68,7 @@ function collectCandidateRecords(raw: unknown): UnknownRecord[] {
     if (isRecord(value)) candidates.push(value);
   };
 
-  if (Array.isArray(raw)) {
+  if (isUnknownArray(raw)) {
     const first = raw[0];
     if (isRecord(first) && ("result" in first || ("data" in first && !("tokenId" in first)))) {
       add(first);
@@ -90,7 +94,7 @@ function collectCandidateRecords(raw: unknown): UnknownRecord[] {
 }
 
 function looksLikeItemArray(raw: unknown): raw is unknown[] {
-  if (!Array.isArray(raw)) return false;
+  if (!isUnknownArray(raw)) return false;
   if (raw.length === 0) return true;
   const first = raw[0];
   return isRecord(first) && ("tokenId" in first || "itemId" in first || "name" in first || "title" in first);

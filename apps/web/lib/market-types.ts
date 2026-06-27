@@ -1,7 +1,20 @@
+import type { ScoreConfidence, StoredCardScoreType } from "@renaiss/core";
+
 export type FreshnessStatus = "fresh" | "stale" | "missing";
 export type DataSourceMode = "seed" | "database";
 export type CardStatus = "listed" | "unlisted" | "unknown";
-export type ConfidenceLabel = "low" | "medium" | "high";
+export type ConfidenceLabel = ScoreConfidence;
+
+export type MarketScore = {
+  scoreType: StoredCardScoreType;
+  value: number;
+  confidence: ConfidenceLabel;
+  reasons: string[];
+  riskFlags: string[];
+  computedAt: string;
+  inputsHash: string | null;
+  source: "deterministic" | "persisted";
+};
 
 export type MarketCard = {
   tokenId: string;
@@ -31,6 +44,7 @@ export type MarketCard = {
   dealScore: number | null;
   priceConfidenceScore: number | null;
   externalCompConfidenceScore: number | null;
+  scores: Partial<Record<StoredCardScoreType, MarketScore>>;
   confidence: ConfidenceLabel;
   dealDeltaPct: number | null;
   observedAt: string | null;
@@ -96,9 +110,9 @@ export type SyncStatus = {
 export type MarketFilters = {
   q: string;
   status: "all" | CardStatus;
-  language: "all" | string;
-  grader: "all" | string;
-  grade: "all" | string;
+  language: string;
+  grader: string;
+  grade: string;
   sortBy: MarketSortKey;
   sortDir: "asc" | "desc";
   mismatchesOnly: boolean;
