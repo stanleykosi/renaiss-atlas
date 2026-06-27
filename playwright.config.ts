@@ -12,6 +12,9 @@ export default defineConfig({
     command: "pnpm --filter @renaiss/web dev",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: true,
+    env: {
+      DEMO_MODE: "true"
+    },
     timeout: 120_000
   },
   projects: [

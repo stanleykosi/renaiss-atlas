@@ -4,6 +4,8 @@ export function GET() {
   return NextResponse.json({
     status: "ok",
     service: "renaiss-atlas-web",
-    mode: "scaffold"
+    mode: process.env["DEMO_MODE"] === "false" ? "database" : "seed",
+    readOnly: true,
+    generatedAt: new Date().toISOString()
   });
 }

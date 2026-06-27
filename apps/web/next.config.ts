@@ -6,7 +6,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
-  transpilePackages: ["@renaiss/core", "@renaiss/ui"],
+  transpilePackages: ["@renaiss/core", "@renaiss/db", "@renaiss/ui"],
   poweredByHeader: false
 };
 

@@ -9,9 +9,11 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test --config ../../playwright.config.ts"
   },
   "dependencies": {
+    "@renaiss/core": "workspace:*",
+    "@renaiss/db": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@tanstack/react-query": "^5.62.8",
     "@tanstack/react-table": "^8.20.6",
