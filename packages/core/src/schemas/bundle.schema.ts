@@ -8,6 +8,7 @@ export const BundleTypeSchema = z.enum([
   "same_card",
   "same_character",
   "same_set",
+  "same_wallet",
   "same_pack_origin",
   "wallet_completion",
   "intent_driven",
@@ -30,4 +31,3 @@ export const BundleSchema = z.object({
 
 export type BundleType = z.infer<typeof BundleTypeSchema>;
 export type Bundle = z.infer<typeof BundleSchema>;
-

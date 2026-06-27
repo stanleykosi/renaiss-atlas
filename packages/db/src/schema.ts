@@ -71,6 +71,7 @@ export const bundleType = pgEnum("bundle_type", [
   "same_card",
   "same_character",
   "same_set",
+  "same_wallet",
   "same_pack_origin",
   "wallet_completion",
   "intent_driven",

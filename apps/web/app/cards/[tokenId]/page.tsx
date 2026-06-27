@@ -18,6 +18,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getBundlesForCard } from "@/lib/bundle-data";
+import type { BundleView } from "@/lib/bundle-types";
 import { getCardDetail } from "@/lib/market-data";
 import type { MarketCard, MarketScore } from "@/lib/market-types";
 import { cn } from "@/lib/utils";
@@ -72,6 +74,10 @@ function formatDate(value: string | null) {
 function compactId(value: string) {
   if (value.length <= 18) return value;
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
+}
+
+function formatType(value: string) {
+  return value.replaceAll("_", " ");
 }
 
 function badgeVariant(card: MarketCard) {
@@ -187,7 +193,11 @@ function getScoreRows(card: MarketCard): [string, MarketScore | undefined][] {
 
 export default async function CardDetailPage({ params }: CardDetailPageProps) {
   const { tokenId } = await params;
-  const detail = await getCardDetail(decodeURIComponent(tokenId));
+  const decodedTokenId = decodeURIComponent(tokenId);
+  const [detail, cardBundles] = await Promise.all([
+    getCardDetail(decodedTokenId),
+    getBundlesForCard(decodedTokenId)
+  ]);
 
   if (detail == null) {
     notFound();
@@ -335,12 +345,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                   : "Comp review is pending. Current records are preserved in source evidence."
               }
             />
-            <PlaceholderSection
-              icon={<Boxes className="h-4 w-4 text-primary" aria-hidden="true" />}
-              title="Bundles"
-              badge={formatScore(card.scores.collector_premium?.value)}
-              detail="No bundle candidates are attached to this card detail yet."
-            />
+            <BundlePanel bundles={cardBundles} tokenId={card.tokenId} />
             <PlaceholderSection
               icon={<HandCoins className="h-4 w-4 text-primary" aria-hidden="true" />}
               title="Intents"
@@ -351,6 +356,67 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
         </section>
       </div>
     </main>
+  );
+}
+
+function BundlePanel({ bundles, tokenId }: { bundles: BundleView[]; tokenId: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Boxes className="h-4 w-4 text-primary" aria-hidden="true" />
+            <CardTitle>Bundles</CardTitle>
+          </div>
+          <Badge variant="outline">{bundles.length}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {bundles.length === 0 ? (
+          <EmptyState
+            title="No bundle candidates"
+            detail="No deterministic bundle currently includes this card."
+          />
+        ) : (
+          <div className="grid gap-3">
+            {bundles.map((bundle) => (
+              <article key={bundle.id} className="rounded-md border bg-secondary/30 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={bundle.confidence === "high" ? "default" : "secondary"}>
+                        {bundle.confidence}
+                      </Badge>
+                      <Badge variant="outline">{formatType(bundle.bundleType)}</Badge>
+                    </div>
+                    <h3 className="mt-2 text-sm font-medium">{bundle.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{bundle.summary}</p>
+                  </div>
+                  <p className="font-mono text-lg font-semibold">{formatScore(bundle.score)}</p>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {bundle.items
+                    .filter((item) => item.tokenId !== tokenId)
+                    .slice(0, 3)
+                    .map((item) => (
+                      <Link
+                        key={`${bundle.id}:${item.tokenId}`}
+                        href={`/cards/${encodeURIComponent(item.tokenId)}`}
+                        className="rounded-md border bg-card px-3 py-2 text-sm transition-colors hover:bg-secondary"
+                      >
+                        {item.card?.name ?? item.tokenId}
+                      </Link>
+                    ))}
+                </div>
+              </article>
+            ))}
+            <Link href="/bundles" className={cn(buttonVariants({ variant: "secondary", className: "w-fit" }))}>
+              Open bundle explorer
+            </Link>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

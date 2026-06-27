@@ -47,7 +47,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE bundle_type AS ENUM ('sequential_cert_pair','same_card','same_character','same_set','same_pack_origin','wallet_completion','intent_driven','custom');
+  CREATE TYPE bundle_type AS ENUM ('sequential_cert_pair','same_card','same_character','same_set','same_wallet','same_pack_origin','wallet_completion','intent_driven','custom');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS app_settings (
