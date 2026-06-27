@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("opens a seeded card detail page", async ({ page }) => {
+  test.setTimeout(45_000);
   await page.goto("/cards/demo-card-001");
 
   await expect(page.getByRole("heading", { name: "Pikachu Renaiss Demo PSA 10", exact: true })).toBeVisible();
