@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import {
   AlertTriangle,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -44,6 +45,7 @@ import type {
   MarketScore,
   MarketSortKey
 } from "@/lib/market-types";
+import { cn } from "@/lib/utils";
 
 type MarketWorkspaceProps = {
   initialData: MarketOverview;
@@ -494,6 +496,12 @@ function CardDrawer({ card }: { card: MarketCard }) {
         </SheetDescription>
       </SheetHeader>
       <div className="flex-1 overflow-y-auto p-5">
+        <Link
+          href={`/cards/${encodeURIComponent(card.tokenId)}`}
+          className={cn(buttonVariants({ variant: "secondary", className: "mb-5 w-fit" }))}
+        >
+          Open card page
+        </Link>
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Ask" value={formatMoney(card.askPriceUsd)} />
           <Metric label="FMV" value={formatMoney(card.fmvUsd)} />
