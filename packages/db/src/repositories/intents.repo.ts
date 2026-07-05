@@ -10,6 +10,9 @@ export function createIntentsRepo(db: AtlasDb) {
   return {
     async create(input: NewIntent) {
       const [intent] = await db.insert(intents).values(input).returning();
+      if (intent == null) {
+        throw new Error("Intent insert returned no row.");
+      }
       return intent;
     },
 
@@ -22,6 +25,18 @@ export function createIntentsRepo(db: AtlasDb) {
         .limit(limit);
     },
 
+    async list(limit = 100) {
+      return db.select().from(intents).orderBy(desc(intents.createdAt)).limit(limit);
+    },
+
+    async listMatchesForIntent(intentId: string) {
+      return db
+        .select()
+        .from(intentMatches)
+        .where(eq(intentMatches.intentId, intentId))
+        .orderBy(desc(intentMatches.matchScore));
+    },
+
     async createMatch(input: NewIntentMatch) {
       const [match] = await db
         .insert(intentMatches)
@@ -29,7 +44,12 @@ export function createIntentsRepo(db: AtlasDb) {
         .onConflictDoNothing()
         .returning();
       return match;
+    },
+
+    async replaceMatches(intentId: string, inputs: NewIntentMatch[]) {
+      await db.delete(intentMatches).where(eq(intentMatches.intentId, intentId));
+      if (inputs.length === 0) return [];
+      return db.insert(intentMatches).values(inputs).returning();
     }
   };
 }
-

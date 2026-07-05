@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("opens seeded wallet copilot with read-only actions", async ({ page }) => {
-  await page.goto("/wallet/0x1111111111111111111111111111111111111111");
+  await page.goto("/wallet/0x1111111111111111111111111111111111111111", {
+    waitUntil: "domcontentloaded"
+  });
 
   await expect(page.getByRole("heading", { name: "Wallet Copilot" })).toBeVisible();
   await expect(page.getByText("Read only").first()).toBeVisible();
@@ -15,7 +17,7 @@ test("opens seeded wallet copilot with read-only actions", async ({ page }) => {
 });
 
 test("shows a friendly invalid wallet state", async ({ page }) => {
-  await page.goto("/wallet/not-an-address");
+  await page.goto("/wallet/not-an-address", { waitUntil: "domcontentloaded" });
 
   await expect(page.getByRole("heading", { name: "Invalid wallet address" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open demo wallet" })).toBeVisible();

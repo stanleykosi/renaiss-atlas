@@ -32,6 +32,19 @@ export const CreateIntentInputSchema = IntentSchema.omit({
   id: true,
   status: true
 }).extend({
+  creatorAlias: z.string().trim().min(1).max(80).nullable().optional(),
+  creatorWallet: z.string().trim().min(1).max(120).nullable().optional(),
+  creatorDiscordId: z.string().trim().min(1).max(120).nullable().optional(),
+  queryText: z.string().trim().min(3).max(500),
+  tcg: z.string().trim().min(1).max(80).nullable().optional(),
+  characterName: z.string().trim().min(1).max(120).nullable().optional(),
+  setName: z.string().trim().min(1).max(160).nullable().optional(),
+  cardNumber: z.string().trim().min(1).max(80).nullable().optional(),
+  grader: z.string().trim().min(1).max(40).nullable().optional(),
+  grade: z.string().trim().min(1).max(40).nullable().optional(),
+  language: z.string().trim().min(1).max(80).nullable().optional(),
+  requiresSerialAdjacency: z.boolean().default(false),
+  requiresExternalComp: z.boolean().default(false),
   status: IntentStatusSchema.optional()
 });
 
@@ -39,4 +52,3 @@ export type IntentType = z.infer<typeof IntentTypeSchema>;
 export type IntentStatus = z.infer<typeof IntentStatusSchema>;
 export type Intent = z.infer<typeof IntentSchema>;
 export type CreateIntentInput = z.infer<typeof CreateIntentInputSchema>;
-

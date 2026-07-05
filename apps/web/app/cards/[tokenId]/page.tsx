@@ -20,6 +20,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBundlesForCard } from "@/lib/bundle-data";
 import type { BundleView } from "@/lib/bundle-types";
+import { getIntentMatchesForCard } from "@/lib/intent-data";
+import type { IntentMatchView } from "@/lib/intent-types";
 import { getCardDetail } from "@/lib/market-data";
 import type { MarketCard, MarketScore } from "@/lib/market-types";
 import { cn } from "@/lib/utils";
@@ -194,9 +196,10 @@ function getScoreRows(card: MarketCard): [string, MarketScore | undefined][] {
 export default async function CardDetailPage({ params }: CardDetailPageProps) {
   const { tokenId } = await params;
   const decodedTokenId = decodeURIComponent(tokenId);
-  const [detail, cardBundles] = await Promise.all([
+  const [detail, cardBundles, cardIntentMatches] = await Promise.all([
     getCardDetail(decodedTokenId),
-    getBundlesForCard(decodedTokenId)
+    getBundlesForCard(decodedTokenId),
+    getIntentMatchesForCard(decodedTokenId)
   ]);
 
   if (detail == null) {
@@ -227,6 +230,10 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                 {card.freshness}
               </Badge>
               <Badge variant={card.mockData ? "warning" : "secondary"}>{card.sourceLabel}</Badge>
+              <Badge variant={cardIntentMatches.length > 0 ? "default" : "outline"}>
+                <HandCoins className="h-3 w-3" aria-hidden="true" />
+                Seller demand: {cardIntentMatches.length}
+              </Badge>
             </div>
             <h1 className="mt-3 text-3xl font-semibold tracking-normal">{card.name}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -346,12 +353,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               }
             />
             <BundlePanel bundles={cardBundles} tokenId={card.tokenId} />
-            <PlaceholderSection
-              icon={<HandCoins className="h-4 w-4 text-primary" aria-hidden="true" />}
-              title="Intents"
-              badge={formatScore(card.scores.demand?.value)}
-              detail="No active intent records are attached to this card detail yet."
-            />
+            <IntentMatchPanel matches={cardIntentMatches} demandScore={card.scores.demand?.value} />
           </aside>
         </section>
       </div>
@@ -412,6 +414,89 @@ function BundlePanel({ bundles, tokenId }: { bundles: BundleView[]; tokenId: str
             ))}
             <Link href="/bundles" className={cn(buttonVariants({ variant: "secondary", className: "w-fit" }))}>
               Open bundle explorer
+            </Link>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function IntentMatchPanel({
+  matches,
+  demandScore
+}: {
+  matches: IntentMatchView[];
+  demandScore: number | null | undefined;
+}) {
+  const sortedMatches = [...matches].sort((left, right) => right.matchScore - left.matchScore);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <HandCoins className="h-4 w-4 text-primary" aria-hidden="true" />
+            <CardTitle>Intents</CardTitle>
+          </div>
+          <Badge variant={matches.length > 0 ? "default" : "outline"}>
+            {matches.length} demand
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {sortedMatches.length === 0 ? (
+          <EmptyState
+            title="No active demand matches"
+            detail="No deterministic intent currently matches this card."
+          />
+        ) : (
+          <div className="grid gap-3">
+            <div className="rounded-md border bg-secondary/30 p-3">
+              <p className="text-xs text-muted-foreground">Demand score</p>
+              <p className="mt-1 font-mono text-2xl font-semibold">{formatScore(demandScore)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Intent signals are informational only and never execute listings, approvals, escrow, or trades.
+              </p>
+            </div>
+            {sortedMatches.map((match) => (
+              <article key={`${match.intentId}:${match.tokenId}`} className="rounded-md border bg-secondary/30 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={match.confidence === "high" ? "default" : "secondary"}>
+                        {match.confidence}
+                      </Badge>
+                      <Badge variant="outline">{formatType(match.intentType)}</Badge>
+                    </div>
+                    <h3 className="mt-2 text-sm font-medium">{match.queryText}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {match.creatorAlias ?? "anonymous"} - {formatDate(match.createdAt)}
+                    </p>
+                  </div>
+                  <p className="font-mono text-lg font-semibold">{formatScore(match.matchScore)}</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {match.reasons.map((reason) => (
+                    <Badge key={reason} variant="outline">
+                      {reason}
+                    </Badge>
+                  ))}
+                </div>
+                {match.riskFlags.length === 0 ? null : (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {match.riskFlags.map((flag) => (
+                      <Badge key={flag} variant={flag === "mock_data" ? "warning" : "destructive"}>
+                        <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                        {flag.replaceAll("_", " ")}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+            <Link href="/intents" className={cn(buttonVariants({ variant: "secondary", className: "w-fit" }))}>
+              Open intent board
             </Link>
           </div>
         )}

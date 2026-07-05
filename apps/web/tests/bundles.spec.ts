@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("opens bundle explorer with seeded deterministic bundles", async ({ page }) => {
-  await page.goto("/bundles");
+  await page.goto("/bundles", { waitUntil: "domcontentloaded" });
 
   await expect(page.getByRole("heading", { name: "Bundle Explorer" })).toBeVisible();
   await expect(page.getByText(/Sequential cert pair/)).toBeVisible();

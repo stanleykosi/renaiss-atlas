@@ -107,6 +107,7 @@ export function MarketWorkspace({ initialData }: MarketWorkspaceProps) {
   const [filters, setFilters] = React.useState<MarketFilters>(defaultMarketFilters);
   const [selectedTokenId, setSelectedTokenId] = React.useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [hydrated, setHydrated] = React.useState(false);
 
   const visibleCards = React.useMemo(
     () => applyMarketFilters(initialData.cards, filters),
@@ -116,6 +117,10 @@ export function MarketWorkspace({ initialData }: MarketWorkspaceProps) {
     selectedTokenId == null
       ? null
       : initialData.cards.find((card) => card.tokenId === selectedTokenId) ?? null;
+
+  React.useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   function openCard(card: MarketCard) {
     setSelectedTokenId(card.tokenId);
@@ -187,12 +192,20 @@ export function MarketWorkspace({ initialData }: MarketWorkspaceProps) {
               <CardTitle>Market Cards</CardTitle>
               <Badge variant="outline">{visibleCards.length}</Badge>
             </div>
-            <Button variant="secondary" onClick={() => setFilters(defaultMarketFilters)}>
+            <Button
+              variant="secondary"
+              disabled={!hydrated}
+              onClick={() => setFilters(defaultMarketFilters)}
+            >
               Reset
             </Button>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[1.5fr_repeat(4,minmax(0,1fr))]">
+          <fieldset
+            className="m-0 grid gap-3 border-0 p-0 disabled:opacity-70 md:grid-cols-[1.5fr_repeat(4,minmax(0,1fr))]"
+            data-market-filters-hydrated={hydrated ? "true" : "false"}
+            disabled={!hydrated}
+          >
             <div className="relative">
               <Search
                 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -256,7 +269,7 @@ export function MarketWorkspace({ initialData }: MarketWorkspaceProps) {
                 </option>
               ))}
             </Select>
-          </div>
+          </fieldset>
         </CardHeader>
 
         <CardContent>

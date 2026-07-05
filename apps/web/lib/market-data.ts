@@ -1,8 +1,12 @@
 import {
   freshnessLabel,
+  matchIntentsToCards,
   scoreCard,
   type DeterministicCardScoringInput,
   type DeterministicStoredScore,
+  type IntentMatchingCardInput,
+  type IntentMatchingIntentInput,
+  type IntentMatchResult,
   type StoredCardScoreType
 } from "@renaiss/core";
 import {
@@ -14,6 +18,7 @@ import {
   demoBundles,
   demoCards,
   demoExternalPrices,
+  demoIntents,
   demoIntentMatches,
   demoLatestPrices,
   demoPackActivities,
@@ -22,6 +27,7 @@ import {
   cards as cardsTable,
   externalPriceSnapshots,
   intentMatches,
+  intents as intentsTable,
   latestCardPrices,
   packActivities,
   scores as scoresTable,
@@ -66,6 +72,7 @@ type DbRows = {
   prices: (typeof latestCardPrices.$inferSelect)[];
   scores: (typeof scoresTable.$inferSelect)[];
   externalComps: (typeof externalPriceSnapshots.$inferSelect)[];
+  intents: (typeof intentsTable.$inferSelect)[];
   intentMatches: (typeof intentMatches.$inferSelect)[];
   bundles: (typeof bundles.$inferSelect)[];
   bundleItems: (typeof bundleItems.$inferSelect)[];
@@ -104,6 +111,135 @@ function isStoredCardScoreType(value: string): value is StoredCardScoreType {
 
 function confidenceLabel(value: string): ConfidenceLabel {
   return value === "high" || value === "medium" || value === "low" ? value : "low";
+}
+
+function activeIntentInput(intent: {
+  id: string;
+  intentType: string;
+  queryText: string;
+  tcg?: string | null;
+  characterName?: string | null;
+  setName?: string | null;
+  cardNumber?: string | null;
+  grader?: string | null;
+  grade?: string | null;
+  language?: string | null;
+  minYear?: number | null;
+  maxYear?: number | null;
+  minPriceUsd?: string | number | null;
+  maxPriceUsd?: string | number | null;
+  requiresSerialAdjacency?: boolean | null;
+  requiresExternalComp?: boolean | null;
+  minLiquidityScore?: string | number | null;
+  status?: string | null;
+  createdAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+  metadata?: unknown;
+}): IntentMatchingIntentInput {
+  const metadata = toRecord(intent.metadata);
+
+  return {
+    id: intent.id,
+    intentType: intent.intentType,
+    queryText: intent.queryText,
+    tcg: intent.tcg ?? null,
+    characterName: intent.characterName ?? null,
+    setName: intent.setName ?? null,
+    cardNumber: intent.cardNumber ?? null,
+    grader: intent.grader ?? null,
+    grade: intent.grade ?? null,
+    language: intent.language ?? null,
+    minYear: intent.minYear ?? null,
+    maxYear: intent.maxYear ?? null,
+    minPriceUsd: intent.minPriceUsd ?? null,
+    maxPriceUsd: intent.maxPriceUsd ?? null,
+    requiresSerialAdjacency: intent.requiresSerialAdjacency ?? false,
+    requiresExternalComp: intent.requiresExternalComp ?? false,
+    minLiquidityScore: intent.minLiquidityScore ?? null,
+    status: intent.status ?? "active",
+    createdAt: intent.createdAt ?? null,
+    expiresAt: intent.expiresAt ?? null,
+    mockData: metadata["mockData"] === true
+  };
+}
+
+function matchInputCard(input: {
+  card: Parameters<typeof buildMarketCards>[0]["cards"][number];
+  price: Parameters<typeof buildMarketCards>[0]["prices"][number] | undefined;
+  externalComps: MarketExternalComp[];
+  liquidityScore: number | null;
+}): IntentMatchingCardInput {
+  return {
+    tokenId: input.card.tokenId,
+    name: input.card.name,
+    setName: input.card.setName ?? null,
+    cardNumber: input.card.cardNumber ?? null,
+    characterName: input.card.characterName ?? null,
+    tcg: input.card.tcg ?? null,
+    grader: input.card.grader ?? null,
+    grade: input.card.grade ?? null,
+    language: input.card.language ?? null,
+    year: input.card.year ?? null,
+    serial: input.card.serial ?? null,
+    serialNum: input.card.serialNum ?? null,
+    status: input.card.status,
+    askPriceUsd: toNumber(input.price?.askPriceUsd),
+    fmvUsd: toNumber(input.price?.fmvUsd),
+    liquidityScore: input.liquidityScore,
+    externalCompConfidenceScore:
+      input.externalComps.length === 0
+        ? null
+        : Math.max(...input.externalComps.map((comp) => comp.matchConfidence)),
+    hasAcceptedExternalComp: input.externalComps.some((comp) => !comp.rejected)
+  };
+}
+
+function mergeIntentMatches(input: {
+  persisted: {
+    intentId?: string;
+    tokenId: string;
+    matchScore: string | number;
+    confidence?: string;
+    reasons?: unknown;
+    createdAt?: Date | string | null;
+  }[];
+  computed: IntentMatchResult[];
+  now: Date;
+}) {
+  const byKey = new Map<
+    string,
+    {
+      intentId?: string;
+      tokenId: string;
+      matchScore: number;
+      confidence?: string;
+      reasons?: unknown;
+      createdAt?: Date | string | null;
+    }
+  >();
+
+  for (const match of input.persisted) {
+    const score = toNumber(match.matchScore) ?? 0;
+    const key = `${match.intentId ?? "persisted"}:${match.tokenId}`;
+    byKey.set(key, { ...match, matchScore: score });
+  }
+
+  for (const match of input.computed) {
+    const key = `${match.intentId}:${match.tokenId}`;
+    const current = byKey.get(key);
+    if (current == null || match.matchScore > current.matchScore) {
+      byKey.set(key, {
+        intentId: match.intentId,
+        tokenId: match.tokenId,
+        matchScore: match.matchScore,
+        confidence: match.confidence,
+        reasons: match.reasons,
+        createdAt: input.now
+      });
+    }
+  }
+
+  return [...byKey.values()];
 }
 
 function newerComputedAt(left: string | null | undefined, right: string | null | undefined) {
@@ -283,9 +419,35 @@ function buildMarketCards(input: {
     rejectionReason?: string | null;
     fetchedAt?: Date | string | null;
   }[];
+  intents?: {
+    id: string;
+    intentType: string;
+    queryText: string;
+    tcg?: string | null;
+    characterName?: string | null;
+    setName?: string | null;
+    cardNumber?: string | null;
+    grader?: string | null;
+    grade?: string | null;
+    language?: string | null;
+    minYear?: number | null;
+    maxYear?: number | null;
+    minPriceUsd?: string | number | null;
+    maxPriceUsd?: string | number | null;
+    requiresSerialAdjacency?: boolean | null;
+    requiresExternalComp?: boolean | null;
+    minLiquidityScore?: string | number | null;
+    status?: string | null;
+    createdAt?: Date | string | null;
+    expiresAt?: Date | string | null;
+    metadata?: unknown;
+  }[];
   intentMatches?: {
+    intentId?: string;
     tokenId: string;
     matchScore: string | number;
+    confidence?: string;
+    reasons?: unknown;
     createdAt?: Date | string | null;
   }[];
   bundles?: {
@@ -304,7 +466,7 @@ function buildMarketCards(input: {
   const priceByToken = new Map(input.prices.map((price) => [price.tokenId, price]));
   const scoreByTokenAndType = latestScoreMap(input.scores);
   const compsByToken = new Map<string, MarketExternalComp[]>();
-  const intentMatchesByToken = new Map<string, NonNullable<typeof input.intentMatches>>();
+  const intentMatchesByToken = new Map<string, ReturnType<typeof mergeIntentMatches>>();
   const bundleById = new Map((input.bundles ?? []).map((bundle) => [bundle.id, bundle]));
   const bundleTypesByToken = new Map<string, Set<string>>();
   const packOriginTokens = new Set(
@@ -329,7 +491,25 @@ function buildMarketCards(input: {
     compsByToken.set(comp.tokenId, current);
   }
 
-  for (const match of input.intentMatches ?? []) {
+  const computedIntentMatches = matchIntentsToCards({
+    intents: (input.intents ?? []).map(activeIntentInput),
+    cards: input.cards.map((card) =>
+      matchInputCard({
+        card,
+        price: priceByToken.get(card.tokenId),
+        externalComps: compsByToken.get(card.tokenId) ?? [],
+        liquidityScore: scoreByTokenAndType.get(`${card.tokenId}:liquidity`)?.value ?? null
+      })
+    ),
+    now: input.now
+  });
+  const mergedIntentMatches = mergeIntentMatches({
+    persisted: input.intentMatches ?? [],
+    computed: computedIntentMatches,
+    now: input.now
+  });
+
+  for (const match of mergedIntentMatches) {
     const current = intentMatchesByToken.get(match.tokenId) ?? [];
     current.push(match);
     intentMatchesByToken.set(match.tokenId, current);
@@ -378,7 +558,7 @@ function buildMarketCards(input: {
         fetchedAt: comp.fetchedAt
       })),
       intentMatches: (intentMatchesByToken.get(card.tokenId) ?? []).map((match) => ({
-        matchScore: toNumber(match.matchScore) ?? 0,
+        matchScore: match.matchScore,
         createdAt: match.createdAt ?? null
       })),
       adjacentCertExists: bundleTypes.has("sequential_cert_pair"),
@@ -586,6 +766,7 @@ function seedRows(now: Date): MarketOverview {
     scores: demoScores,
     externalComps: demoExternalPrices,
     intentMatches: demoIntentMatches,
+    intents: demoIntents,
     bundles: demoBundles,
     bundleItems: demoBundleItems,
     packActivities: demoPackActivities,
@@ -634,6 +815,7 @@ async function readDbRows(): Promise<DbRows | null> {
       scoreRows,
       externalComps,
       intentMatchRows,
+      intentRows,
       bundleRows,
       bundleItemRows,
       packActivityRows,
@@ -645,6 +827,7 @@ async function readDbRows(): Promise<DbRows | null> {
       database.db.select().from(scoresTable),
       database.db.select().from(externalPriceSnapshots),
       database.db.select().from(intentMatches),
+      database.db.select().from(intentsTable),
       database.db.select().from(bundles),
       database.db.select().from(bundleItems),
       database.db.select().from(packActivities),
@@ -657,6 +840,7 @@ async function readDbRows(): Promise<DbRows | null> {
       prices,
       scores: scoreRows,
       externalComps,
+      intents: intentRows,
       intentMatches: intentMatchRows,
       bundles: bundleRows,
       bundleItems: bundleItemRows,
@@ -690,6 +874,7 @@ export async function getMarketOverview(): Promise<MarketOverview> {
     scores: dbRows.scores,
     externalComps: dbRows.externalComps,
     intentMatches: dbRows.intentMatches,
+    intents: dbRows.intents,
     bundles: dbRows.bundles,
     bundleItems: dbRows.bundleItems,
     packActivities: dbRows.packActivities,
