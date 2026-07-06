@@ -412,12 +412,21 @@ function buildMarketCards(input: {
     tokenId: string;
     platform: string;
     productTitle?: string | null;
+    productUrl?: string | null;
+    currency?: string | null;
     currentPriceUsd?: string | number | null;
+    lastSaleUsd?: string | number | null;
     averagePriceUsd?: string | number | null;
+    volume30d?: number | null;
+    gradeMatched?: boolean | null;
+    languageMatched?: boolean | null;
+    cardNumberMatched?: boolean | null;
     matchConfidence?: string | number | null;
+    matchReasons?: unknown;
     rejected: boolean;
     rejectionReason?: string | null;
     fetchedAt?: Date | string | null;
+    metadata?: unknown;
   }[];
   intents?: {
     id: string;
@@ -477,16 +486,28 @@ function buildMarketCards(input: {
 
   for (const comp of input.externalComps) {
     const current = compsByToken.get(comp.tokenId) ?? [];
+    const metadata = toRecord(comp.metadata);
+    const mockData = metadata["mockData"] === true || input.sourceMode === "seed";
     current.push({
       id: comp.id ?? `${comp.tokenId}:${comp.platform}`,
       platform: comp.platform,
       productTitle: comp.productTitle ?? null,
+      productUrl: comp.productUrl ?? null,
+      currency: comp.currency ?? "USD",
       currentPriceUsd: toNumber(comp.currentPriceUsd),
+      lastSaleUsd: toNumber(comp.lastSaleUsd),
       averagePriceUsd: toNumber(comp.averagePriceUsd),
+      volume30d: comp.volume30d ?? null,
+      gradeMatched: comp.gradeMatched ?? null,
+      languageMatched: comp.languageMatched ?? null,
+      cardNumberMatched: comp.cardNumberMatched ?? null,
       matchConfidence: toNumber(comp.matchConfidence) ?? 0,
+      matchReasons: stringArray(comp.matchReasons),
       rejected: comp.rejected,
       rejectionReason: comp.rejectionReason ?? null,
-      fetchedAt: toIso(comp.fetchedAt) ?? input.now.toISOString()
+      fetchedAt: toIso(comp.fetchedAt) ?? input.now.toISOString(),
+      sourceLabel: mockData ? "Mock external comp" : comp.platform,
+      mockData
     });
     compsByToken.set(comp.tokenId, current);
   }

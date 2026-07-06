@@ -78,6 +78,7 @@ const confidenceWeight: Record<ScoreConfidence, number> = {
   medium: 0.7,
   low: 0.4
 };
+const externalCompStaleAfterDays = 7;
 
 function clamp(value: number, min = 0, max = 100): number {
   if (!Number.isFinite(value)) return min;
@@ -122,9 +123,14 @@ function combineRiskFlags(...scores: DeterministicScoreResult[]): string[] {
 function confidenceFromValue(value: number, riskFlags: readonly string[]): ScoreConfidence {
   if (
     riskFlags.some((flag) =>
-      ["stale_renaiss_data", "external_comp_mismatch", "activity_data_missing", "fmv_missing"].includes(
-        flag
-      )
+      [
+        "stale_renaiss_data",
+        "external_comp_mismatch",
+        "external_comp_stale",
+        "low_match_confidence",
+        "activity_data_missing",
+        "fmv_missing"
+      ].includes(flag)
     )
   ) {
     return value >= 45 ? "medium" : "low";
@@ -134,15 +140,36 @@ function confidenceFromValue(value: number, riskFlags: readonly string[]): Score
   return "low";
 }
 
+function isExternalCompStale(comp: ExternalCompInput, now: Date): boolean {
+  const days = ageDays(comp.fetchedAt, now);
+  return days != null && days > externalCompStaleAfterDays;
+}
+
 function acceptedExternalPrices(input: DeterministicCardScoringInput): number[] {
+  const now = input.now ?? new Date();
   return (input.externalComps ?? [])
     .filter((comp) => comp.rejected !== true)
+    .filter((comp) => (comp.matchConfidence ?? 0) >= 45)
+    .filter((comp) => !isExternalCompStale(comp, now))
     .map((comp) => comp.priceUsd ?? comp.averagePriceUsd ?? null)
     .filter((value): value is number => value != null && Number.isFinite(value) && value > 0);
 }
 
 function rejectedExternalCount(input: DeterministicCardScoringInput): number {
   return (input.externalComps ?? []).filter((comp) => comp.rejected === true).length;
+}
+
+function lowConfidenceExternalCount(input: DeterministicCardScoringInput): number {
+  return (input.externalComps ?? []).filter(
+    (comp) => comp.rejected !== true && (comp.matchConfidence ?? 0) < 45
+  ).length;
+}
+
+function staleExternalCount(input: DeterministicCardScoringInput): number {
+  const now = input.now ?? new Date();
+  return (input.externalComps ?? []).filter(
+    (comp) => comp.rejected !== true && isExternalCompStale(comp, now)
+  ).length;
 }
 
 export function scoreActivityVelocity(input: DeterministicCardScoringInput): DeterministicScoreResult {
@@ -254,6 +281,8 @@ export function scorePriceConsensus(input: DeterministicCardScoringInput): Deter
   if (rejectedExternalCount(input) > 0) {
     riskFlags.push("external_comp_mismatch");
   }
+  if (lowConfidenceExternalCount(input) > 0) riskFlags.push("low_match_confidence");
+  if (staleExternalCount(input) > 0) riskFlags.push("external_comp_stale");
 
   return {
     value: roundScore(value),
@@ -385,6 +414,8 @@ export function scoreExternalCompConfidence(input: DeterministicCardScoringInput
   const accepted = acceptedExternalPrices(input);
   const externalMedian = median(accepted);
   const rejected = rejectedExternalCount(input);
+  const lowConfidence = lowConfidenceExternalCount(input);
+  const stale = staleExternalCount(input);
   const riskFlags: string[] = [];
   const reasons: string[] = [];
   let value = 20;
@@ -404,13 +435,23 @@ export function scoreExternalCompConfidence(input: DeterministicCardScoringInput
     riskFlags.push(rejected > 0 ? "external_comp_mismatch" : "external_comp_missing");
     reasons.push("No accepted external comps are available.");
   }
+  if (lowConfidence > 0) {
+    value -= 10;
+    riskFlags.push("low_match_confidence");
+    reasons.push("Low-confidence external comps were excluded.");
+  }
+  if (stale > 0) {
+    value -= 15;
+    riskFlags.push("external_comp_stale");
+    reasons.push("Stale external comps were excluded.");
+  }
 
   return {
     value: roundScore(value),
     confidence: value >= 75 && riskFlags.length === 0 ? "high" : value >= 45 ? "medium" : "low",
     reasons,
     riskFlags,
-    inputs: { acceptedCount: accepted.length, rejected, externalMedian }
+    inputs: { acceptedCount: accepted.length, rejected, lowConfidence, stale, externalMedian }
   };
 }
 
@@ -502,6 +543,8 @@ export function scoreDeal(input: DeterministicCardScoringInput): DeterministicSc
   let riskPenalty = 0;
   if (riskFlags.includes("external_comp_missing")) riskPenalty += 10;
   if (riskFlags.includes("external_comp_mismatch")) riskPenalty += 30;
+  if (riskFlags.includes("low_match_confidence")) riskPenalty += 10;
+  if (riskFlags.includes("external_comp_stale")) riskPenalty += 10;
   if (riskFlags.includes("fmv_missing")) riskPenalty += 25;
   if (liquidity.value < 40) {
     riskPenalty += 20;

@@ -21,6 +21,7 @@
     "db:seed": "pnpm --filter @renaiss/db db:seed",
     "jobs:sync:renaiss": "pnpm --filter @renaiss/worker jobs:sync:renaiss",
     "jobs:sync:gacha": "pnpm --filter @renaiss/worker jobs:sync:gacha",
+    "jobs:sync:external": "pnpm --filter @renaiss/worker jobs:sync:external",
     "jobs:score": "pnpm --filter @renaiss/worker jobs:score",
     "jobs:bundles": "pnpm --filter @renaiss/worker jobs:bundles",
     "jobs:intents": "pnpm --filter @renaiss/worker jobs:intents",

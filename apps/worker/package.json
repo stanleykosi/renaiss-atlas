@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "jobs:sync:renaiss": "tsx src/jobs/sync-renaiss.ts",
     "jobs:sync:gacha": "tsx src/jobs/sync-gacha.ts",
+    "jobs:sync:external": "tsx src/jobs/sync-external-comps.ts",
     "jobs:score": "tsx src/jobs/score.ts",
     "jobs:bundles": "tsx src/jobs/bundles.ts",
     "jobs:intents": "tsx src/jobs/intents.ts",

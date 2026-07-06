@@ -70,6 +70,32 @@ describe("deterministic scoring", () => {
     expect(scoreExternalCompConfidence(rejected).riskFlags).toContain("external_comp_mismatch");
   });
 
+  it("excludes stale and low-confidence comps from deal support", () => {
+    const supported = scoreDeal(baseInput);
+    const weak: DeterministicCardScoringInput = {
+      ...baseInput,
+      externalComps: [
+        {
+          priceUsd: 105,
+          matchConfidence: 30,
+          rejected: false,
+          fetchedAt: now
+        },
+        {
+          priceUsd: 103,
+          matchConfidence: 90,
+          rejected: false,
+          fetchedAt: "2026-06-01T00:00:00.000Z"
+        }
+      ]
+    };
+
+    const confidence = scoreExternalCompConfidence(weak);
+    expect(scoreDeal(weak).value).toBeLessThan(supported.value);
+    expect(confidence.riskFlags).toContain("low_match_confidence");
+    expect(confidence.riskFlags).toContain("external_comp_stale");
+  });
+
   it("raises collector premium for adjacency and pack-origin signals", () => {
     const plain = scoreCollectorPremium({ ...baseInput, grade: "9" });
     const premium = scoreCollectorPremium({

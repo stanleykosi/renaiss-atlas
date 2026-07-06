@@ -11,6 +11,8 @@ describe("parseRuntimeEnv", () => {
       RENAISS_V0_MARKETPLACE_URL: "https://api.renaiss.xyz/v0/marketplace",
       RENAISS_TRPC_MARKETPLACE_URL: "https://www.renaiss.xyz/api/trpc/collectible.list",
       GACHA_SYNC_ENABLED: "true",
+      EXTERNAL_COMPS_ENABLED: "true",
+      EXTERNAL_COMPS_LIVE_ENABLED: "false",
       UPSTASH_REDIS_REST_URL: "https://redis.example.com",
       UPSTASH_REDIS_REST_TOKEN: "redis-token",
       AI_ENABLED: "false",
@@ -27,6 +29,9 @@ describe("parseRuntimeEnv", () => {
     expect(env.MIMO_MODEL).toBe("mimo-v2.5");
     expect(env.GACHA_PACKS).toBe("renacrypt-pack,omega");
     expect(env.GACHA_RSC_BASE_URL).toBe("https://www.renaiss.xyz/gacha");
+    expect(env.EXTERNAL_COMP_SOURCES).toBe("snkrdunk,pricecharting");
+    expect(env.EXTERNAL_COMPS_LIVE_ENABLED).toBe(false);
+    expect(env.JINA_READER_BASE_URL).toBe("https://r.jina.ai/");
     expect(env.DEMO_MODE).toBe(true);
   });
 

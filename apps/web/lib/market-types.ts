@@ -61,12 +61,22 @@ export type MarketExternalComp = {
   id: string;
   platform: string;
   productTitle: string | null;
+  productUrl: string | null;
+  currency: string;
   currentPriceUsd: number | null;
+  lastSaleUsd: number | null;
   averagePriceUsd: number | null;
+  volume30d: number | null;
+  gradeMatched: boolean | null;
+  languageMatched: boolean | null;
+  cardNumberMatched: boolean | null;
   matchConfidence: number;
+  matchReasons: string[];
   rejected: boolean;
   rejectionReason: string | null;
   fetchedAt: string;
+  sourceLabel: string;
+  mockData: boolean;
 };
 
 export type MarketHealth = {

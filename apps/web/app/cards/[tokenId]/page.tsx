@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
 import type { AiCardMemoResult } from "@renaiss/ai";
 import {
   AlertTriangle,
@@ -8,6 +7,7 @@ import {
   Boxes,
   Clock3,
   Database,
+  ExternalLink,
   FileSearch,
   Gauge,
   HandCoins,
@@ -348,16 +348,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               </CardContent>
             </Card>
 
-            <PlaceholderSection
-              icon={<FileSearch className="h-4 w-4 text-primary" aria-hidden="true" />}
-              title="External Comps"
-              badge={`${card.externalComps.length} records`}
-              detail={
-                card.externalComps.length === 0
-                  ? "No external comp evidence recorded for this card."
-                  : "Comp review is pending. Current records are preserved in source evidence."
-              }
-            />
+            <ExternalCompPanel card={card} />
             <BundlePanel bundles={cardBundles} tokenId={card.tokenId} />
             <IntentMatchPanel matches={cardIntentMatches} demandScore={card.scores.demand?.value} />
           </aside>
@@ -595,6 +586,130 @@ function IntentMatchPanel({
   );
 }
 
+function matchFlagLabel(label: string, value: boolean | null) {
+  if (value === true) return `${label} match`;
+  if (value === false) return `${label} mismatch`;
+  return `${label} unknown`;
+}
+
+function matchFlagVariant(value: boolean | null) {
+  if (value === true) return "default";
+  if (value === false) return "destructive";
+  return "outline";
+}
+
+function ExternalCompPanel({ card }: { card: MarketCard }) {
+  const accepted = card.externalComps.filter((comp) => !comp.rejected).length;
+  const rejected = card.externalComps.length - accepted;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <FileSearch className="h-4 w-4 text-primary" aria-hidden="true" />
+            <CardTitle>External Comps</CardTitle>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Badge variant={rejected > 0 ? "destructive" : accepted > 0 ? "default" : "outline"}>
+              {accepted} accepted
+            </Badge>
+            {rejected > 0 ? <Badge variant="warning">{rejected} rejected</Badge> : null}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {card.externalComps.length === 0 ? (
+          <EmptyState
+            title="No external comp evidence"
+            detail="No SNKRDUNK or PriceCharting comparison has been stored for this card."
+          />
+        ) : (
+          <div className="grid gap-3">
+            <div className="rounded-md border bg-secondary/30 p-3">
+              <p className="text-xs text-muted-foreground">External comp confidence</p>
+              <p className="mt-1 font-mono text-2xl font-semibold">
+                {formatScore(card.externalCompConfidenceScore)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Rejected comps lower price confidence and deal score until the mismatch is resolved.
+              </p>
+            </div>
+            {card.externalComps
+              .slice()
+              .sort((left, right) => {
+                if (left.rejected !== right.rejected) return left.rejected ? 1 : -1;
+                return right.matchConfidence - left.matchConfidence;
+              })
+              .map((comp) => (
+                <article key={comp.id} className="rounded-md border bg-secondary/30 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={comp.rejected ? "destructive" : "default"}>
+                          {comp.rejected ? "rejected" : "accepted"}
+                        </Badge>
+                        <Badge variant="outline">{comp.platform}</Badge>
+                        <Badge variant={comp.mockData ? "warning" : "secondary"}>{comp.sourceLabel}</Badge>
+                      </div>
+                      <h3 className="mt-2 text-sm font-medium">{comp.productTitle ?? "Untitled comp"}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDate(comp.fetchedAt)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-lg font-semibold">
+                        {formatMoney(comp.currentPriceUsd ?? comp.averagePriceUsd ?? comp.lastSaleUsd)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatScore(comp.matchConfidence)} match
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge variant={matchFlagVariant(comp.cardNumberMatched)}>
+                      {matchFlagLabel("number", comp.cardNumberMatched)}
+                    </Badge>
+                    <Badge variant={matchFlagVariant(comp.languageMatched)}>
+                      {matchFlagLabel("language", comp.languageMatched)}
+                    </Badge>
+                    <Badge variant={matchFlagVariant(comp.gradeMatched)}>
+                      {matchFlagLabel("grade", comp.gradeMatched)}
+                    </Badge>
+                    {comp.volume30d == null ? null : <Badge variant="outline">{comp.volume30d} 30d volume</Badge>}
+                  </div>
+                  {comp.rejectionReason == null ? null : (
+                    <p className="mt-3 rounded-md border border-dashed bg-background p-2 text-xs text-muted-foreground">
+                      {comp.rejectionReason}
+                    </p>
+                  )}
+                  {comp.matchReasons.length === 0 ? null : (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {comp.matchReasons.map((reason) => (
+                        <Badge key={reason} variant="outline">
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {comp.productUrl == null ? null : (
+                    <a
+                      href={comp.productUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(buttonVariants({ variant: "ghost", className: "mt-3 h-8 px-2" }))}
+                    >
+                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                      Open source
+                    </a>
+                  )}
+                </article>
+              ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function HeaderMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-card p-3">
@@ -689,34 +804,5 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
       <p className="text-sm font-medium">{title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
     </div>
-  );
-}
-
-function PlaceholderSection({
-  icon,
-  title,
-  badge,
-  detail
-}: {
-  icon: ReactNode;
-  title: string;
-  badge: string;
-  detail: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {icon}
-            <CardTitle>{title}</CardTitle>
-          </div>
-          <Badge variant="outline">{badge}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <EmptyState title="Pending evidence" detail={detail} />
-      </CardContent>
-    </Card>
   );
 }
