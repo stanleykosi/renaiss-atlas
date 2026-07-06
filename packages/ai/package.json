@@ -16,6 +16,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@renaiss/core": "workspace:*",
     "zod": "^3.24.1"
   },
   "devDependencies": {

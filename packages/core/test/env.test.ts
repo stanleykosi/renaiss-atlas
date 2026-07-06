@@ -21,6 +21,9 @@ describe("parseRuntimeEnv", () => {
     expect(env.RENAISS_MARKETPLACE_STRATEGY).toBe("auto");
     expect(env.UPSTASH_REDIS_REST_URL).toBe("https://redis.example.com");
     expect(env.AI_ENABLED).toBe(false);
+    expect(env.AI_PROVIDER).toBe("auto");
+    expect(env.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
+    expect(env.MIMO_MODEL).toBe("mimo-v2.5");
     expect(env.DEMO_MODE).toBe(true);
   });
 

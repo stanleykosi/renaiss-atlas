@@ -19,5 +19,6 @@ describe("AiMemoOutputSchema", () => {
 
   it("keeps the prohibited phrase catalog explicit", () => {
     expect(PROHIBITED_AI_PHRASES).toContain("seed phrase");
+    expect(PROHIBITED_AI_PHRASES).toContain("trade execution");
   });
 });

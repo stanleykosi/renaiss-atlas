@@ -11,6 +11,7 @@ const booleanFlag = z.preprocess(
 );
 
 export const RenaissMarketplaceStrategySchema = z.enum(["auto", "v0", "trpc"]);
+export const AiProviderStrategySchema = z.enum(["auto", "openai", "mimo", "deterministic"]);
 
 export const RuntimeEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -25,9 +26,15 @@ export const RuntimeEnvSchema = z.object({
   RENAISS_V0_MARKETPLACE_URL: z.string().url(),
   RENAISS_TRPC_MARKETPLACE_URL: z.string().url(),
   AI_ENABLED: booleanFlag,
+  AI_PROVIDER: AiProviderStrategySchema.default("auto"),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
+  OPENAI_MODEL: z.string().min(1).default("gpt-4.1-mini"),
   GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   MIMO_API_KEY: z.string().optional(),
+  MIMO_BASE_URL: z.string().url().default("https://token-plan-cn.xiaomimimo.com/v1"),
+  MIMO_MODEL: z.string().min(1).default("mimo-v2.5"),
   DISCORD_ENABLED: booleanFlag,
   DISCORD_APPLICATION_ID: z.string().optional(),
   DISCORD_PUBLIC_KEY: z.string().optional(),

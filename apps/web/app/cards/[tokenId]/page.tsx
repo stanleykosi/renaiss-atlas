@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import type { AiCardMemoResult } from "@renaiss/ai";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -18,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCardMemoForDetail } from "@/lib/ai-memo-data";
 import { getBundlesForCard } from "@/lib/bundle-data";
 import type { BundleView } from "@/lib/bundle-types";
 import { getIntentMatchesForCard } from "@/lib/intent-data";
@@ -196,15 +198,17 @@ function getScoreRows(card: MarketCard): [string, MarketScore | undefined][] {
 export default async function CardDetailPage({ params }: CardDetailPageProps) {
   const { tokenId } = await params;
   const decodedTokenId = decodeURIComponent(tokenId);
-  const [detail, cardBundles, cardIntentMatches] = await Promise.all([
-    getCardDetail(decodedTokenId),
-    getBundlesForCard(decodedTokenId),
-    getIntentMatchesForCard(decodedTokenId)
-  ]);
+  const detail = await getCardDetail(decodedTokenId);
 
   if (detail == null) {
     notFound();
   }
+
+  const [cardBundles, cardIntentMatches, cardMemo] = await Promise.all([
+    getBundlesForCard(decodedTokenId),
+    getIntentMatchesForCard(decodedTokenId),
+    getCardMemoForDetail(detail)
+  ]);
 
   const card = detail.item;
   const recommendations = buildRecommendations(card);
@@ -311,6 +315,8 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
           </div>
 
           <aside className="flex flex-col gap-6">
+            <AiMemoPanel memo={cardMemo} />
+
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -358,6 +364,90 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
         </section>
       </div>
     </main>
+  );
+}
+
+function AiMemoPanel({ memo }: { memo: AiCardMemoResult | null }) {
+  if (memo == null) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+            <CardTitle>AI Memo</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <EmptyState title="No memo available" detail="No source-cited memo could be generated for this card." />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const output = memo.output;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+            <CardTitle>AI Memo</CardTitle>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Badge variant={output.confidence === "high" ? "default" : "secondary"}>
+              {output.confidence}
+            </Badge>
+            <Badge variant={memo.deterministicFallback ? "warning" : "outline"}>
+              {memo.deterministicFallback ? "deterministic fallback" : memo.provider}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border bg-secondary/30 p-3">
+          <p className="text-sm font-medium">{output.nextAction.label}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{output.recommendation}</p>
+        </div>
+
+        <section className="mt-4">
+          <h3 className="text-xs font-medium uppercase tracking-normal text-muted-foreground">Evidence</h3>
+          <ul className="mt-2 grid gap-2">
+            {output.evidence.map((item) => (
+              <li key={item} className="rounded-md border bg-card px-3 py-2 text-sm">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="mt-4">
+          <h3 className="text-xs font-medium uppercase tracking-normal text-muted-foreground">Risks</h3>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {output.risks.map((risk) => (
+              <Badge key={risk} variant={risk.toLowerCase().includes("mock") ? "warning" : "outline"}>
+                {risk}
+              </Badge>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-4">
+          <h3 className="text-xs font-medium uppercase tracking-normal text-muted-foreground">Sources</h3>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {output.sourcesUsed.map((sourceId) => (
+              <Badge key={sourceId} variant="secondary" className="font-mono">
+                {compactId(sourceId)}
+              </Badge>
+            ))}
+          </div>
+        </section>
+
+        <p className="mt-4 rounded-md border border-dashed bg-background p-3 text-xs text-muted-foreground">
+          {output.disclaimer}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
