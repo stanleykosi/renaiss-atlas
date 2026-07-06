@@ -3,16 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createIntentWithMatches, getIntentBoard } from "@/lib/intent-data";
-
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX_WRITES = 5;
-
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
-
-const rateLimitBuckets = new Map<string, RateLimitBucket>();
+import { checkIntentRateLimit } from "@/lib/redis-rate-limit";
 
 const EmptyToUndefinedString = z.preprocess(
   (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
@@ -69,31 +60,6 @@ function clientKey(request: Request): string {
   return forwardedFor ?? realIp ?? "local";
 }
 
-function rateLimit(request: Request): { allowed: true } | { allowed: false; retryAfterSeconds: number } {
-  const now = Date.now();
-  const key = clientKey(request);
-  const bucket = rateLimitBuckets.get(key);
-
-  if (bucket == null || bucket.resetAt <= now) {
-    rateLimitBuckets.set(key, {
-      count: 1,
-      resetAt: now + RATE_LIMIT_WINDOW_MS
-    });
-    return { allowed: true };
-  }
-
-  if (bucket.count >= RATE_LIMIT_MAX_WRITES) {
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000)
-    };
-  }
-
-  bucket.count += 1;
-  rateLimitBuckets.set(key, bucket);
-  return { allowed: true };
-}
-
 function isLikelySpam(queryText: string): boolean {
   const urlCount = (queryText.match(/https?:\/\//gi) ?? []).length;
   const repeatedCharacters = /(.)\1{12,}/.test(queryText);
@@ -106,15 +72,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request);
-  if (!limited.allowed) {
+  const limited = await checkIntentRateLimit({ identifier: clientKey(request) });
+  if (limited.status !== "allowed") {
+    const unavailable = limited.status === "unavailable";
     return NextResponse.json(
       {
-        error: "Too many intent submissions. Please wait before creating another intent.",
+        error: unavailable
+          ? "Intent creation is temporarily unavailable. Redis rate limiting is required."
+          : "Too many intent submissions. Please wait before creating another intent.",
         retryAfterSeconds: limited.retryAfterSeconds
       },
       {
-        status: 429,
+        status: unavailable ? 503 : 429,
         headers: {
           "Retry-After": String(limited.retryAfterSeconds)
         }

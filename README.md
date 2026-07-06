@@ -41,6 +41,8 @@ pnpm dev
 
 The web app runs at `http://localhost:3000`. The Hono API scaffold uses `API_PORT=3001`.
 
+Intent creation uses Redis REST rate limiting in production. Set `INTENT_RATE_LIMIT_REDIS_REST_URL` and `INTENT_RATE_LIMIT_REDIS_REST_TOKEN`, or the Upstash-compatible `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Demo mode allows local intent previews without Redis.
+
 ## Commands
 
 ```bash
