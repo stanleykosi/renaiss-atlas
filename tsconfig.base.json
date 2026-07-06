@@ -23,6 +23,7 @@
       "@renaiss/db": ["./packages/db/src/index.ts"],
       "@renaiss/connectors": ["./packages/connectors/src/index.ts"],
       "@renaiss/ai": ["./packages/ai/src/index.ts"],
+      "@renaiss/discord": ["./apps/discord/src/index.ts"],
       "@renaiss/ui": ["./packages/ui/src/index.ts"]
     }
   }
