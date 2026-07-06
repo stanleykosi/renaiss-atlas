@@ -5,10 +5,15 @@ import {
   type NewCard,
   type NewCardPriceSnapshot,
   type NewDataQualityEvent,
+  type NewPackActivity,
   type NewSourceRecord
 } from "@renaiss/db";
 
 import type {
+  RenaissDataQualityEvent,
+  RenaissGachaPage,
+  RenaissGachaPersistResult,
+  RenaissGachaSyncData,
   RenaissMarketplacePage,
   RenaissMarketplacePersistResult,
   RenaissMarketplaceSyncData
@@ -97,7 +102,7 @@ function priceToDbInsert(
 }
 
 function dataQualityEventToDbInsert(
-  event: RenaissMarketplacePage["dataQualityEvents"][number],
+  event: RenaissDataQualityEvent,
   syncRunId?: string
 ): NewDataQualityEvent {
   return {
@@ -111,6 +116,46 @@ function dataQualityEventToDbInsert(
       ...event.details,
       syncRunId: syncRunId ?? null
     }
+  };
+}
+
+function sourceRecordForGachaPage(page: RenaissGachaPage, syncRunId?: string): NewSourceRecord {
+  const hasError = page.dataQualityEvents.some((event) => event.severity === "error");
+
+  return {
+    source: page.source,
+    sourceUrl: page.requestUrl,
+    requestFingerprint: hashPayload({
+      source: page.source,
+      packSlug: page.packSlug,
+      requestUrl: page.requestUrl
+    }),
+    responseStatus: page.responseStatus,
+    responseHash: hashPayload(page.rawText),
+    rawTextExcerpt: page.rawText.slice(0, 20_000),
+    fetchedAt: parseIsoDate(page.fetchedAt),
+    parseStatus: hasError ? "partial" : "parsed",
+    syncRunId
+  };
+}
+
+function packActivityToDbInsert(
+  activity: RenaissGachaPage["activities"][number],
+  sourceRecordId: string
+): NewPackActivity {
+  return {
+    activityId: activity.activityId,
+    packName: activity.packName,
+    packSlug: activity.packSlug,
+    tier: activity.tier ?? null,
+    fmvUsd: activity.fmvUsd ?? null,
+    psaId: activity.psaId ?? null,
+    frontImageUrl: activity.frontImageUrl ?? null,
+    pulledAt: activity.pulledAt == null ? null : parseIsoDate(activity.pulledAt),
+    firstSeenAt: parseIsoDate(activity.firstSeenAt),
+    sourceRecordId,
+    matchedTokenId: activity.matchedTokenId ?? null,
+    metadata: activity.metadata
   };
 }
 
@@ -157,6 +202,48 @@ export async function persistRenaissMarketplaceSync(
       await repos.dataQualityEvents.create(dataQualityEventToDbInsert(event, options.syncRunId));
       result.dataQualityEvents += 1;
     }
+  }
+
+  return result;
+}
+
+export async function persistRenaissGachaSync(
+  db: AtlasDb,
+  data: RenaissGachaSyncData,
+  options: { syncRunId?: string } = {}
+): Promise<RenaissGachaPersistResult> {
+  const repos = createAtlasRepositories(db);
+  const result: RenaissGachaPersistResult = {
+    sourceRecords: 0,
+    packActivities: 0,
+    dataQualityEvents: 0
+  };
+  const sourceRecordByPack = new Map<string, string>();
+
+  for (const page of data.pages) {
+    const sourceRecord = await repos.sourceRecords.create(
+      sourceRecordForGachaPage(page, options.syncRunId)
+    );
+
+    if (sourceRecord == null) {
+      throw new Error("Failed to persist Renaiss gacha source record.");
+    }
+
+    result.sourceRecords += 1;
+    sourceRecordByPack.set(page.packSlug, sourceRecord.id);
+  }
+
+  for (const activity of data.activities) {
+    const sourceRecordId = sourceRecordByPack.get(activity.packSlug);
+    if (sourceRecordId == null) continue;
+
+    await repos.packActivities.upsert(packActivityToDbInsert(activity, sourceRecordId));
+    result.packActivities += 1;
+  }
+
+  for (const event of data.dataQualityEvents) {
+    await repos.dataQualityEvents.create(dataQualityEventToDbInsert(event, options.syncRunId));
+    result.dataQualityEvents += 1;
   }
 
   return result;

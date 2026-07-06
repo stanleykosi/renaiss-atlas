@@ -10,6 +10,7 @@ describe("parseRuntimeEnv", () => {
       JOB_SECRET: "replace-with-strong-random-value",
       RENAISS_V0_MARKETPLACE_URL: "https://api.renaiss.xyz/v0/marketplace",
       RENAISS_TRPC_MARKETPLACE_URL: "https://www.renaiss.xyz/api/trpc/collectible.list",
+      GACHA_SYNC_ENABLED: "true",
       UPSTASH_REDIS_REST_URL: "https://redis.example.com",
       UPSTASH_REDIS_REST_TOKEN: "redis-token",
       AI_ENABLED: "false",
@@ -24,6 +25,8 @@ describe("parseRuntimeEnv", () => {
     expect(env.AI_PROVIDER).toBe("auto");
     expect(env.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
     expect(env.MIMO_MODEL).toBe("mimo-v2.5");
+    expect(env.GACHA_PACKS).toBe("renacrypt-pack,omega");
+    expect(env.GACHA_RSC_BASE_URL).toBe("https://www.renaiss.xyz/gacha");
     expect(env.DEMO_MODE).toBe(true);
   });
 

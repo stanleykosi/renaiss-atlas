@@ -119,3 +119,64 @@ export type RenaissMarketplacePersistResult = {
   latestPrices: number;
   dataQualityEvents: number;
 };
+
+export type RenaissGachaPackDefinition = {
+  slug: string;
+  name: string;
+};
+
+export type RenaissGachaConfig = {
+  baseUrl: string;
+  packs: RenaissGachaPackDefinition[];
+  rateLimitMs: number;
+  retryAttempts: number;
+  retryBaseDelayMs: number;
+  fetch: RenaissMarketplaceFetch;
+};
+
+export type RenaissGachaInput = Partial<
+  Pick<RenaissGachaConfig, "baseUrl" | "packs" | "rateLimitMs" | "retryAttempts">
+>;
+
+export type RenaissNormalizedPackActivity = {
+  activityId: string;
+  packName: string;
+  packSlug: string;
+  tier?: string | null;
+  fmvUsd?: string | null;
+  psaId?: string | null;
+  frontImageUrl?: string | null;
+  pulledAt?: string | null;
+  firstSeenAt: string;
+  matchedTokenId?: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type RenaissGachaPage = {
+  source: "renaiss_gacha_rsc";
+  sourceUrl: string;
+  requestUrl: string;
+  responseStatus: number;
+  packName: string;
+  packSlug: string;
+  fetchedAt: string;
+  rawText: string;
+  rawActivities: unknown[];
+  activities: RenaissNormalizedPackActivity[];
+  dataQualityEvents: RenaissDataQualityEvent[];
+  warnings: string[];
+};
+
+export type RenaissGachaSyncData = {
+  packs: RenaissGachaPackDefinition[];
+  pages: RenaissGachaPage[];
+  activities: RenaissNormalizedPackActivity[];
+  dataQualityEvents: RenaissDataQualityEvent[];
+  warnings: string[];
+};
+
+export type RenaissGachaPersistResult = {
+  sourceRecords: number;
+  packActivities: number;
+  dataQualityEvents: number;
+};
