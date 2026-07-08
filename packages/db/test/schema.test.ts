@@ -9,6 +9,7 @@ import {
   demoIntents,
   demoPackActivities,
   parseDatabaseEnv,
+  jobLocks,
   sourceRecords
 } from "../src/index.js";
 
@@ -46,5 +47,10 @@ describe("database schema", () => {
 
   it("exports repository factory", () => {
     expect(typeof createAtlasRepositories).toBe("function");
+  });
+
+  it("maps job locks for single-run worker execution", () => {
+    expect(jobLocks.jobName.name).toBe("job_name");
+    expect(jobLocks.expiresAt.name).toBe("expires_at");
   });
 });

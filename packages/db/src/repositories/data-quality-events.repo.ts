@@ -21,6 +21,17 @@ export function createDataQualityEventsRepo(db: AtlasDb) {
         )
         .orderBy(desc(dataQualityEvents.createdAt))
         .limit(limit);
+    },
+
+    async recent(limit = 50, severity?: string) {
+      const query = db.select().from(dataQualityEvents).orderBy(desc(dataQualityEvents.createdAt)).limit(limit);
+      if (severity == null) return query;
+      return db
+        .select()
+        .from(dataQualityEvents)
+        .where(eq(dataQualityEvents.severity, severity))
+        .orderBy(desc(dataQualityEvents.createdAt))
+        .limit(limit);
     }
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,10 @@ export default function ErrorPage({
   error,
   reset
 }: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <main className="grid min-h-screen place-items-center px-6">
       <section className="w-full max-w-lg rounded-md border bg-card p-6">

@@ -3,6 +3,8 @@ import { z } from "zod";
 
 const INTENT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const INTENT_RATE_LIMIT_MAX_WRITES = 5;
+const ADMIN_SYNC_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const ADMIN_SYNC_RATE_LIMIT_MAX_WRITES = 10;
 const REDIS_UNAVAILABLE_RETRY_SECONDS = 60;
 
 const EmptyToUndefined = z.preprocess(
@@ -52,7 +54,7 @@ type RedisRateLimitConfig = {
   token: string;
 };
 
-export type IntentRateLimitResult =
+export type FixedWindowRateLimitResult =
   | {
       status: "allowed";
       remaining: number;
@@ -70,6 +72,8 @@ export type IntentRateLimitResult =
       retryAfterSeconds: number;
       reason: string;
     };
+
+export type IntentRateLimitResult = FixedWindowRateLimitResult;
 
 function redisConfigFromEnv(input: Record<string, string | undefined>): RedisRateLimitConfig | null {
   const parsed = RedisRateLimitEnvSchema.safeParse(input);
@@ -94,8 +98,8 @@ function hashIdentifier(identifier: string): string {
   return createHash("sha256").update(identifier).digest("hex").slice(0, 32);
 }
 
-function keyForIdentifier(identifier: string): string {
-  return `renaiss-atlas:intents:create:${hashIdentifier(identifier)}`;
+function keyForIdentifier(namespace: string, identifier: string): string {
+  return `renaiss-atlas:${namespace}:${hashIdentifier(identifier)}`;
 }
 
 function numberFromRedisResult(value: unknown): number {
@@ -135,23 +139,29 @@ async function executeRedisCommand(config: RedisRateLimitConfig, command: unknow
   return parsed.data.result;
 }
 
-export async function checkIntentRateLimit({
+export async function checkFixedWindowRateLimit({
+  namespace,
   identifier,
+  max,
+  windowMs,
   env = process.env,
   now = Date.now()
 }: {
+  namespace: string;
   identifier: string;
+  max: number;
+  windowMs: number;
   env?: Record<string, string | undefined>;
   now?: number;
-}): Promise<IntentRateLimitResult> {
+}): Promise<FixedWindowRateLimitResult> {
   const config = redisConfigFromEnv(env);
 
   if (config == null) {
     if (isDemoMode(env)) {
       return {
         status: "allowed",
-        remaining: INTENT_RATE_LIMIT_MAX_WRITES,
-        resetAt: now + INTENT_RATE_LIMIT_WINDOW_MS,
+        remaining: max,
+        resetAt: now + windowMs,
         source: "demo"
       };
     }
@@ -168,9 +178,9 @@ export async function checkIntentRateLimit({
       "EVAL",
       FixedWindowScript,
       "1",
-      keyForIdentifier(identifier),
-      String(INTENT_RATE_LIMIT_MAX_WRITES),
-      String(INTENT_RATE_LIMIT_WINDOW_MS)
+      keyForIdentifier(namespace, identifier),
+      String(max),
+      String(windowMs)
     ]);
 
     if (!Array.isArray(result)) {
@@ -193,7 +203,7 @@ export async function checkIntentRateLimit({
 
     return {
       status: "allowed",
-      remaining: Math.max(0, INTENT_RATE_LIMIT_MAX_WRITES - count),
+      remaining: Math.max(0, max - count),
       resetAt,
       source: "redis"
     };
@@ -204,4 +214,34 @@ export async function checkIntentRateLimit({
       reason: "Redis rate limiting is unavailable."
     };
   }
+}
+
+export function checkIntentRateLimit(input: {
+  identifier: string;
+  env?: Record<string, string | undefined>;
+  now?: number;
+}): Promise<IntentRateLimitResult> {
+  return checkFixedWindowRateLimit({
+    namespace: "intents:create",
+    identifier: input.identifier,
+    max: INTENT_RATE_LIMIT_MAX_WRITES,
+    windowMs: INTENT_RATE_LIMIT_WINDOW_MS,
+    ...(input.env == null ? {} : { env: input.env }),
+    ...(input.now == null ? {} : { now: input.now })
+  });
+}
+
+export function checkAdminSyncRateLimit(input: {
+  identifier: string;
+  env?: Record<string, string | undefined>;
+  now?: number;
+}): Promise<FixedWindowRateLimitResult> {
+  return checkFixedWindowRateLimit({
+    namespace: "admin:sync",
+    identifier: input.identifier,
+    max: ADMIN_SYNC_RATE_LIMIT_MAX_WRITES,
+    windowMs: ADMIN_SYNC_RATE_LIMIT_WINDOW_MS,
+    ...(input.env == null ? {} : { env: input.env }),
+    ...(input.now == null ? {} : { now: input.now })
+  });
 }

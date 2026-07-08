@@ -26,6 +26,8 @@
     "jobs:bundles": "pnpm --filter @renaiss/worker jobs:bundles",
     "jobs:intents": "pnpm --filter @renaiss/worker jobs:intents",
     "discord:register": "pnpm --filter @renaiss/discord discord:register",
+    "security:scan": "node scripts/security-scan.mjs",
+    "screenshots": "CAPTURE_SCREENSHOTS=true playwright test --config playwright.config.ts apps/web/tests/screenshots.spec.ts",
     "format": "prettier --write ."
   },
   "devDependencies": {

@@ -16,6 +16,7 @@
     "@renaiss/core": "workspace:*",
     "@renaiss/db": "workspace:*",
     "@renaiss/discord": "workspace:*",
+    "@sentry/nextjs": "^10.63.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@tanstack/react-query": "^5.62.8",
     "@tanstack/react-table": "^8.20.6",

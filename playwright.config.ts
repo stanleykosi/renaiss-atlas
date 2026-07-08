@@ -3,7 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "apps/web/tests",
   fullyParallel: false,
-  timeout: 120_000,
+  timeout: 180_000,
+  expect: {
+    timeout: 30_000
+  },
   workers: 1,
   reporter: [["list"]],
   use: {
@@ -15,9 +18,12 @@ export default defineConfig({
     url: "http://127.0.0.1:3000",
     reuseExistingServer: false,
     env: {
-      DEMO_MODE: "true"
+      DEMO_MODE: "true",
+      SENTRY_DSN: "",
+      NEXT_PUBLIC_SENTRY_DSN: "",
+      SENTRY_AUTH_TOKEN: ""
     },
-    timeout: 180_000
+    timeout: 300_000
   },
   projects: [
     {

@@ -28,6 +28,7 @@ describe("parseRuntimeEnv", () => {
     expect(env.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
     expect(env.MIMO_MODEL).toBe("mimo-v2.5");
     expect(env.GACHA_PACKS).toBe("renacrypt-pack,omega");
+    expect(env.JOB_LOCK_TTL_SECONDS).toBe(900);
     expect(env.GACHA_RSC_BASE_URL).toBe("https://www.renaiss.xyz/gacha");
     expect(env.EXTERNAL_COMP_SOURCES).toBe("snkrdunk,pricecharting");
     expect(env.EXTERNAL_COMPS_LIVE_ENABLED).toBe(false);

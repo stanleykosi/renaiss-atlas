@@ -1,33 +1,20 @@
 # Renaiss Atlas
 
-Renaiss Atlas is the missing liquidity intelligence layer for the collector economy: it turns marketplace, pack, wallet, external-price, serial, bundle, and collector-intent signals into clear next actions with evidence and risk labels.
+Renaiss Atlas is a production-ready liquidity oracle and AI collector copilot for the Renaiss marketplace. It turns marketplace, pack, wallet, external comp, serial, bundle, and collector-intent signals into source-aware next actions.
 
-Community tools are excellent at finding individual signals. Renaiss Atlas turns those signals into a source-aware action layer for the entire collector economy.
+Atlas is read-only. It does not collect private keys or seed phrases, request token approvals, execute trades, custody assets, or ask wallets to sign.
 
-## Scaffold Status
+## What Is Included
 
-This repository is at phase 0 from `IMPLEMENTATION_PLAN.md`.
-
-Included:
-
-- `pnpm` + `turbo` TypeScript monorepo.
-- `apps/web` Next.js App Router shell with Tailwind CSS and shadcn-style local UI primitives.
-- `apps/api` Hono scaffold with a health endpoint.
-- `apps/worker` no-op job command scaffolds.
-- `apps/discord` slash-command registration scaffold.
-- `packages/core` strict Zod domain schemas and deterministic utilities.
-- `packages/db` Postgres + Drizzle schema, migration runner, repositories, and mock-labeled demo seed fixtures.
-- `packages/connectors` typed connector contract.
-- `packages/ai` schema-validated AI memo output contract and prohibited phrase catalog.
-- `packages/ui` optional shared UI utility package.
-
-Product logic is intentionally deferred until the scaffold, TypeScript config, linting, tests, env validation, and README are in place.
-
-## Safety Boundaries
-
-Atlas is read-only. It must not request private keys, seed phrases, wallet signatures, token approvals, custody, trade execution, lending execution, or hidden wallet tracking.
-
-AI output must be generated from backend-provided structured facts, validated against schema, source-cited, and shown with confidence, risks, and disclaimers. Mock or demo data must be clearly labeled.
+- `pnpm` + Turborepo TypeScript monorepo.
+- `apps/web` Next.js App Router app with Tailwind, shadcn-style primitives, market/card/wallet/intent/bundle/pack/admin views, and route handlers.
+- `apps/api` Hono health scaffold.
+- `apps/worker` sync, scoring, bundle, and external comp jobs with Postgres job locks.
+- `apps/discord` signed Discord interaction endpoint and `/atlas` command registration.
+- `packages/core` Zod schemas, deterministic scoring, matching, bundle detection, and utilities.
+- `packages/db` Postgres + Drizzle schema, migrations, repositories, and labeled demo seed fixtures.
+- `packages/connectors` Renaiss, gacha, SNKRDUNK, PriceCharting, exchange, queue, retry, and persistence modules.
+- `packages/ai` provider abstraction, schema validation, confidence caps, safety validation, and deterministic fallback.
 
 ## Local Setup
 
@@ -39,11 +26,9 @@ pnpm test
 pnpm dev
 ```
 
-The web app runs at `http://localhost:3000`. The Hono API scaffold uses `API_PORT=3001`.
+The web app runs at `http://localhost:3000`. `DEMO_MODE=true` uses labeled seed data and does not require live connectors.
 
-Intent creation uses Redis REST rate limiting in production. Set `INTENT_RATE_LIMIT_REDIS_REST_URL` and `INTENT_RATE_LIMIT_REDIS_REST_TOKEN`, or the Upstash-compatible `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Demo mode allows local intent previews without Redis.
-
-## Commands
+## Required Commands
 
 ```bash
 pnpm dev
@@ -52,51 +37,75 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:e2e
+pnpm security:scan
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 pnpm jobs:sync:renaiss
 pnpm jobs:sync:gacha
+pnpm jobs:sync:external
 pnpm jobs:score
 pnpm jobs:bundles
 pnpm jobs:intents
 pnpm discord:register
 ```
 
-The job and Discord scripts are safe scaffold commands until later implementation phases wire real logic. The DB scripts expect `DATABASE_URL`; set `DATABASE_SSL=true` for Supabase if your URL does not already include `sslmode=require`.
+## Demo Seed Mode
 
-## Database
-
-`packages/db` maps `DATABASE_SCHEMA.sql` into Drizzle tables and includes an idempotent SQL migration at `packages/db/migrations/0000_initial.sql`.
+Seed mode is the default:
 
 ```bash
-pnpm db:migrate
-pnpm db:seed
+DEMO_MODE=true
+MOCK_EXTERNAL_COMPS=true
 ```
 
-`pnpm db:migrate` applies the checked-in SQL migration. It uses `IF NOT EXISTS` table/index creation and duplicate-safe enum blocks, so it is suitable for a Supabase project where the schema has already been applied.
+It provides seven wallet cards, active intents, external comp mismatch evidence, sequential and same-character bundles, pack activities for RenaCrypt and OMEGA, scores, actions, an AI memo, and a quest. Demo data is explicitly labeled in UI and API responses.
 
-`pnpm db:seed` inserts clearly labeled demo/mock source records, seven wallet cards, latest price rows, external comp accepted/rejected examples, pack activity for RenaCrypt and OMEGA, an active intent, two bundles, scores, an action recommendation, an AI memo, a wallet snapshot, and a quest.
+Use `DEMO_MODE=false` only when `DATABASE_URL`, Redis REST rate limiting, and production secrets are configured.
 
-## Data Sources
+## Health And Admin
 
-Planned source modules:
+- `/api/health/live` liveness check.
+- `/api/health/ready` readiness check for database, Redis, Sentry, and freshness.
+- `/api/health` full JSON health report.
+- `/admin/sync` operator dashboard for sync runs, job locks, and data-quality warnings.
+- `/api/admin/sync/jobs` accepts authenticated manual sync requests with `Authorization: Bearer $JOB_SECRET`.
 
-- Renaiss marketplace `v0`.
-- Renaiss marketplace tRPC fallback.
-- Renaiss gacha RSC pages.
-- SNKRDUNK.
-- PriceCharting.
-- Exchange rates.
-- Discord interactions and structured intents.
-- Manual seed and clearly labeled mock data.
+Worker jobs use the existing `job_locks` table. Stale locks expire after `JOB_LOCK_TTL_SECONDS`.
 
-Every connector must capture source URL, fetched timestamp, raw source record or useful excerpt, parse status, warnings, confidence, and freshness.
+## Observability
 
-## Next Implementation Phase
+Sentry is configured through `@sentry/nextjs` with App Router instrumentation. Set:
 
-Phase 3 should add DB-backed service wiring and connector persistence:
+```bash
+SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_DSN=
+SENTRY_ORG=
+SENTRY_PROJECT=
+SENTRY_AUTH_TOKEN=
+SENTRY_ENVIRONMENT=production
+```
 
-- repository integration tests against disposable Postgres;
-- Renaiss marketplace connector persistence into source records, cards, and prices;
-- worker commands that create sync runs and data-quality events.
+Logs are structured JSON in server output and forwarded through Sentry logging when the SDK is configured.
+
+## Security
+
+Run:
+
+```bash
+pnpm security:scan
+```
+
+The scan checks source/config files for committed private keys, provider tokens, wallet private key env values, and prohibited approval/trade execution calls. Run it before deployments alongside lint/typecheck/tests/build/E2E.
+
+## Deployment
+
+See [docs/deployment.md](docs/deployment.md) for environment variables, health checks, Vercel/Railway deployment notes, job scheduling, Sentry setup, and screenshot capture.
+
+## Screenshots
+
+Local E2E captures demo screenshots into [docs/screenshots](docs/screenshots):
+
+- `market.png`
+- `card-detail.png`
+- `admin-sync.png`

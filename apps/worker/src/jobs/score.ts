@@ -17,6 +17,8 @@ import {
   parseDatabaseEnv
 } from "@renaiss/db";
 
+import { acquireWorkerJobLock, lockedJobResult } from "../job-lock.js";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 loadDotEnv(repoRoot);
 
@@ -26,6 +28,13 @@ const database = createDbClient(env.DATABASE_URL, {
   databaseSsl: env.DATABASE_SSL,
   max: 2
 });
+const jobLock = await acquireWorkerJobLock(database.db, "score:cards");
+
+if (!jobLock.acquired) {
+  console.log(JSON.stringify(lockedJobResult(jobLock), null, 2));
+  await database.close();
+  process.exit(0);
+}
 
 function toNumber(value: unknown): number | null {
   if (value == null) return null;
@@ -255,5 +264,6 @@ try {
 
   process.exitCode = 1;
 } finally {
+  await jobLock.release();
   await database.close();
 }

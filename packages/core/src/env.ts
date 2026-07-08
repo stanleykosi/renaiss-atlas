@@ -17,6 +17,7 @@ export const RuntimeEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   NEXT_PUBLIC_APP_URL: z.string().url(),
   JOB_SECRET: z.string().min(24, "JOB_SECRET must be at least 24 characters"),
+  JOB_LOCK_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(900),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   INTENT_RATE_LIMIT_REDIS_REST_URL: optionalUrl,
   INTENT_RATE_LIMIT_REDIS_REST_TOKEN: z.string().optional(),
@@ -59,6 +60,11 @@ export const RuntimeEnvSchema = z.object({
   DISCORD_PUBLIC_KEY: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
   SENTRY_DSN: optionalUrl,
+  NEXT_PUBLIC_SENTRY_DSN: optionalUrl,
+  SENTRY_ORG: z.string().optional(),
+  SENTRY_PROJECT: z.string().optional(),
+  SENTRY_AUTH_TOKEN: z.string().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
   DEMO_MODE: z.preprocess(
     (value) => (value === undefined ? "true" : value),
     z.enum(["true", "false"]).transform((value) => value === "true")

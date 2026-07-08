@@ -16,6 +16,8 @@ import {
 } from "@renaiss/db";
 import pino from "pino";
 
+import { acquireWorkerJobLock, lockedJobResult } from "../job-lock.js";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 loadDotEnv(repoRoot);
 
@@ -32,6 +34,13 @@ const database = createDbClient(databaseEnv.DATABASE_URL, {
   databaseSsl: databaseEnv.DATABASE_SSL,
   max: 2
 });
+const jobLock = await acquireWorkerJobLock(database.db, "sync:gacha");
+
+if (!jobLock.acquired) {
+  console.log(JSON.stringify(lockedJobResult(jobLock), null, 2));
+  await database.close();
+  process.exit(0);
+}
 
 let syncRunId: string | undefined;
 
@@ -47,6 +56,7 @@ try {
         2
       )
     );
+    await jobLock.release();
     await database.close();
     process.exit(0);
   }
@@ -148,5 +158,6 @@ try {
 
   process.exitCode = 1;
 } finally {
+  await jobLock.release();
   await database.close();
 }

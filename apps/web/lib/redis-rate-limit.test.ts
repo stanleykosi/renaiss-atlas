@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { checkIntentRateLimit } from "./redis-rate-limit";
+import { checkAdminSyncRateLimit, checkIntentRateLimit } from "./redis-rate-limit";
 
 describe("checkIntentRateLimit", () => {
   afterEach(() => {
@@ -57,5 +57,32 @@ describe("checkIntentRateLimit", () => {
       source: "redis"
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rate-limits admin sync requests with the shared Redis window", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      new Response(JSON.stringify({ result: [1, 3, 25_000] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await checkAdminSyncRateLimit({
+      identifier: "operator",
+      env: {
+        DEMO_MODE: "false",
+        UPSTASH_REDIS_REST_URL: "https://redis.example.com",
+        UPSTASH_REDIS_REST_TOKEN: "test-token"
+      },
+      now: 2_000
+    });
+
+    expect(result).toEqual({
+      status: "allowed",
+      remaining: 7,
+      resetAt: 27_000,
+      source: "redis"
+    });
   });
 });
