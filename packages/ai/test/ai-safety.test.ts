@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AiMemoGenerationError,
   confidenceCapForInput,
   generateCardMemo,
   hashAiMemoInput,
@@ -30,6 +31,16 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
       firstSeenAt: observedAt,
       lastSeenAt: observedAt
     },
+    officialEvidence: {
+      confidence: "high",
+      lastSaleAt: observedAt,
+      updatedAt: observedAt,
+      priceUsdCents: 125000,
+      tradeCount: 4,
+      transactionCount: 3,
+      listingCount: 1,
+      fmvPointCount: 6
+    },
     scores: [
       {
         entityType: "card",
@@ -38,7 +49,7 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
         scoreValue: 82,
         confidence: "high",
         inputsHash: "score-hash",
-        reasons: ["Official trades and source breadth support liquidity."],
+        reasons: ["Renaiss trades support liquidity."],
         riskFlags: [],
         computedAt: observedAt
       }
@@ -49,8 +60,8 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
         subjectId: "official-card-001",
         actionType: "REVIEW_SOURCES",
         priority: 1,
-        title: "Review official evidence",
-        reason: "Use official confidence, source breakdown, trades, and FMV series before making collector decisions.",
+        title: "Review Renaiss data",
+        reason: "Use Renaiss confidence, trades, and FMV history before making collector decisions.",
         confidence: "medium",
         risks: [],
         sourceIds: ["renaiss-os:card:official-card-001"]
@@ -81,13 +92,13 @@ describe("AI memo safety", () => {
   it("rejects uncited sources from model output", () => {
     const result = validateAiMemoOutput(
       {
-        recommendation: "Review the card while evidence develops.",
+        recommendation: "Review the card while data develops.",
         evidence: ["Liquidity score is strong."],
         risks: ["No major deterministic risk flags are present."],
         confidence: "medium",
         sourcesUsed: ["unknown-source"],
         nextAction: { label: "Review sources", type: "REVIEW_SOURCES" },
-        disclaimer: "Informational only; verify cited sources before acting."
+        disclaimer: "Informational only; verify cited Renaiss data before acting."
       },
       memoInput()
     );
@@ -114,6 +125,24 @@ describe("AI memo safety", () => {
     expect(result.issues.join(",")).toContain("prohibited_phrases");
   });
 
+  it("rejects memos that omit the informational disclaimer", () => {
+    const result = validateAiMemoOutput(
+      {
+        recommendation: "Review the card while evidence develops.",
+        evidence: ["Liquidity score is supported by Renaiss trades."],
+        risks: ["Renaiss data can still be thin."],
+        confidence: "medium",
+        sourcesUsed: ["renaiss-os:card:official-card-001"],
+        nextAction: { label: "Review Renaiss data", type: "REVIEW_SOURCES" },
+        disclaimer: "Verify cited sources before acting."
+      },
+      memoInput()
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.issues.join(",")).toContain("missing_informational_disclaimer");
+  });
+
   it("caps confidence for sparse official evidence", () => {
     expect(
       confidenceCapForInput(
@@ -125,7 +154,7 @@ describe("AI memo safety", () => {
     ).toBe("low");
   });
 
-  it("falls back deterministically when provider output is unsafe", async () => {
+  it("rejects provider output when it is unsafe", async () => {
     const unsafeProvider: AiProvider = {
       name: "test-provider",
       model: "unsafe-model",
@@ -142,15 +171,60 @@ describe("AI memo safety", () => {
       }
     };
 
+    await expect(
+      generateCardMemo(memoInput(), {
+        provider: unsafeProvider,
+        now: new Date(observedAt)
+      })
+    ).rejects.toMatchObject({
+      name: "AiMemoGenerationError",
+      issues: expect.arrayContaining([expect.stringContaining("prohibited_phrases")])
+    } satisfies Partial<AiMemoGenerationError>);
+  });
+
+  it("returns a validated OpenRouter-style memo when provider output is safe", async () => {
+    const safeProvider: AiProvider = {
+      name: "openrouter",
+      model: "test-model",
+      async generateCardMemo() {
+        return {
+          recommendation: "Review the cited Renaiss data before forming a collector decision.",
+          evidence: ["Liquidity score is supported by Renaiss trades."],
+          risks: ["Renaiss data can still be thin."],
+          confidence: "medium",
+          sourcesUsed: ["renaiss-os:card:official-card-001"],
+          nextAction: { label: "Review Renaiss data", type: "REVIEW_SOURCES" },
+          disclaimer:
+            "Informational only; Atlas does not request keys, approvals, custody, lending, or trade execution. Verify cited sources before acting."
+        };
+      }
+    };
+
     const result = await generateCardMemo(memoInput(), {
-      provider: unsafeProvider,
+      provider: safeProvider,
       now: new Date(observedAt)
     });
 
-    expect(result.validationStatus).toBe("fallback");
-    expect(result.provider).toBe("deterministic");
-    expect(result.output.sourcesUsed).toContain("renaiss-os:card:official-card-001");
-    expect(result.safetyIssues.join(",")).toContain("prohibited_phrases");
+    expect(result.validationStatus).toBe("validated");
+    expect(result.provider).toBe("openrouter");
+  });
+
+  it("allows boundary disclaimers to mention trade execution without treating them as advice", () => {
+    const result = validateAiMemoOutput(
+      {
+        recommendation: "Review the cited Renaiss data before forming a collector decision.",
+        evidence: ["Liquidity signal is supported by Renaiss trade rows."],
+        risks: ["Renaiss data can still be thin."],
+        confidence: "medium",
+        sourcesUsed: ["renaiss-os:card:official-card-001"],
+        nextAction: { label: "Review Renaiss data", type: "REVIEW_SOURCES" },
+        disclaimer:
+          "Informational only; Atlas does not request keys, approvals, custody, lending, or trade execution. Verify cited sources before acting."
+      },
+      memoInput()
+    );
+
+    expect(result.success).toBe(true);
   });
 
   it("hashes official memo evidence deterministically", () => {

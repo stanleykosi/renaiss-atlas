@@ -36,6 +36,7 @@ export type RenaissOsMarketPulse = {
 };
 
 export type RenaissOsCardScoreView = {
+  scoreType: string;
   label: string;
   value: number;
   confidence: ScoreConfidence;
@@ -50,7 +51,8 @@ export type RenaissOsCardIntelligence = {
   trades: RenaissOsTradeRow[];
   fmvSeries: RenaissOsFmvSeriesResponse;
   scores: RenaissOsCardScoreView[];
-  memo: AiCardMemoResult;
+  memo: AiCardMemoResult | null;
+  memoError: string | null;
 };
 
 function centsToUsd(value: number | null | undefined): number | null {
@@ -139,8 +141,11 @@ function sourceRef(input: SourceRefInput): SourceRef {
 }
 
 function scoreLabel(scoreType: string): string {
-  if (scoreType === "deal") return "Memo readiness";
-  if (scoreType === "source_confidence") return "Source confidence";
+  if (scoreType === "activity_velocity") return "Recent market activity";
+  if (scoreType === "deal") return "Evidence memo readiness";
+  if (scoreType === "price_confidence") return "FMV confidence";
+  if (scoreType === "source_confidence") return "Evidence depth";
+  if (scoreType === "liquidity") return "Liquidity signal";
   return scoreType.replaceAll("_", " ");
 }
 
@@ -177,7 +182,10 @@ function scoresForCard(input: {
     }))
   });
 
-  return Object.values(scored.scores).map((score): RenaissOsCardScoreView => ({
+  return Object.values(scored.scores)
+    .filter((score) => score.scoreType !== "source_confidence")
+    .map((score): RenaissOsCardScoreView => ({
+      scoreType: score.scoreType,
       label: scoreLabel(score.scoreType),
       value: score.value,
       confidence: score.confidence,
@@ -215,7 +223,7 @@ function freshnessFor(card: RenaissOsCardDetail): Freshness[] {
       source: "renaiss_os_index",
       observedAt,
       status,
-      message: "Official Renaiss OS Index evidence."
+      message: "Renaiss Index data."
     }
   ];
 }
@@ -291,26 +299,28 @@ function buildMemoInput(input: {
     }))
   });
   const scores = Object.values(scored.scores)
+    .filter((score) => score.scoreType !== "source_confidence")
     .map(scoreForMemo)
     .filter((score): score is Score => score != null);
   const sources = sourceRefsFor(input.card, input.trades, input.fmvSeries);
   const sourceIds = sources.map((source) => source.id);
   const riskFlags = [...new Set(scores.flatMap((score) => score.riskFlags))];
   const confidence = sourceConfidence(input.card.confidence);
+  const transactionCount = input.trades.filter((trade) => trade.kind === "transaction").length;
+  const listingCount = input.trades.filter((trade) => trade.kind === "listing").length;
   const actions: ActionRecommendation[] = [
     {
       subjectType: "card",
       subjectId: input.card.id,
       actionType: "REVIEW_SOURCES",
       priority: 1,
-      title: "Review official evidence",
-      reason:
-        "Use Renaiss OS confidence, source breakdown, trades, and FMV series before making any collector decision.",
+      title: "Review Renaiss data",
+      reason: "Review Renaiss confidence, trades, and FMV history before making any collector decision.",
       confidence,
       risks: riskFlags,
       sourceIds,
       cta: {
-        label: "Open sources",
+        label: "Review Renaiss data",
         href: "/sources"
       }
     }
@@ -334,6 +344,16 @@ function buildMemoInput(input: {
       status: "unknown",
       firstSeenAt: input.card.updatedAt ?? input.card.lastSaleAt ?? new Date().toISOString(),
       lastSeenAt: input.card.updatedAt ?? input.card.lastSaleAt ?? new Date().toISOString()
+    },
+    officialEvidence: {
+      confidence: input.card.confidence,
+      lastSaleAt: input.card.lastSaleAt ?? null,
+      updatedAt: input.card.updatedAt ?? null,
+      priceUsdCents: input.card.priceUsdCents ?? null,
+      tradeCount: input.trades.length,
+      transactionCount,
+      listingCount,
+      fmvPointCount: input.fmvSeries.points.length
     },
     scores,
     candidateActions: actions,
@@ -386,13 +406,19 @@ export async function getRenaissOsCardIntelligence(token: string): Promise<Renai
     trades: trades.data.trades,
     fmvSeries: fmvSeries.data
   });
-  const memo = await generateCardMemo(
-    buildMemoInput({
-      card: card.data,
-      trades: trades.data.trades,
-      fmvSeries: fmvSeries.data
-    })
-  );
+  let memo: AiCardMemoResult | null = null;
+  let memoError: string | null = null;
+  try {
+    memo = await generateCardMemo(
+      buildMemoInput({
+        card: card.data,
+        trades: trades.data.trades,
+        fmvSeries: fmvSeries.data
+      })
+    );
+  } catch (error) {
+    memoError = error instanceof Error ? error.message : "OpenRouter memo generation failed.";
+  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -401,7 +427,8 @@ export async function getRenaissOsCardIntelligence(token: string): Promise<Renai
     trades: trades.data.trades,
     fmvSeries: fmvSeries.data,
     scores,
-    memo
+    memo,
+    memoError
   };
 }
 
@@ -409,9 +436,9 @@ export async function lookupRenaissOsGradedCert(cert: string): Promise<RenaissOs
   return (await createRenaissOSClient().getGraded(cert)).data;
 }
 
-export function officialSourceSummary(card: RenaissOsCardDetail): string {
+export function renaissConfidenceSummary(card: RenaissOsCardDetail): string {
   const confidence = card.confidence ?? "unknown";
-  return `${confidence} confidence, ${card.sourceCount ?? 0} sources, ${card.observationCount ?? 0} window observations`;
+  return `Renaiss confidence: ${confidence}.`;
 }
 
 export { centsToUsd };

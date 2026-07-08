@@ -1,36 +1,36 @@
 import { z } from "zod";
 
-const optionalUrl = z.preprocess(
-  (value) => (value === "" ? undefined : value),
-  z.string().url().optional()
-);
+function cleanEnvString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
+  return trimmed.length === 0 ? undefined : trimmed;
+}
 
-const booleanFlag = z.preprocess(
-  (value) => (value === undefined ? "false" : value),
-  z.enum(["true", "false"]).transform((value) => value === "true")
-);
+const optionalString = z.preprocess(cleanEnvString, z.string().optional());
+const requiredString = z.preprocess(cleanEnvString, z.string().min(1));
+const optionalUrl = z.preprocess(cleanEnvString, z.string().url().optional());
+const requiredUrl = z.preprocess(cleanEnvString, z.string().url());
 
 export const RuntimeEnvSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().url(),
+  NEXT_PUBLIC_APP_URL: requiredUrl,
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
-  UPSTASH_REDIS_REST_URL: z.string().url(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
-  RENAISS_OS_BASE_URL: z.string().url().default("https://api.renaissos.com"),
-  RENAISS_OS_API_KEY: z.string().optional(),
-  RENAISS_OS_API_SECRET: z.string().optional(),
-  AI_ENABLED: booleanFlag,
-  OPENROUTER_API_KEY: z.string().optional(),
-  OPENROUTER_MODEL: z.string().optional(),
-  DISCORD_PUBLIC_KEY: z.string().optional(),
-  DISCORD_APPLICATION_ID: z.string().optional(),
-  DISCORD_BOT_TOKEN: z.string().optional(),
-  DISCORD_GUILD_ID: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: requiredUrl,
+  UPSTASH_REDIS_REST_TOKEN: requiredString,
+  RENAISS_OS_BASE_URL: z.preprocess((value) => cleanEnvString(value) ?? "https://api.renaissos.com", z.string().url()),
+  RENAISS_OS_API_KEY: optionalString,
+  RENAISS_OS_API_SECRET: optionalString,
+  OPENROUTER_API_KEY: requiredString,
+  OPENROUTER_MODEL: requiredString,
+  DISCORD_PUBLIC_KEY: optionalString,
+  DISCORD_APPLICATION_ID: optionalString,
+  DISCORD_BOT_TOKEN: optionalString,
+  DISCORD_GUILD_ID: optionalString,
   SENTRY_DSN: optionalUrl,
   NEXT_PUBLIC_SENTRY_DSN: optionalUrl,
-  SENTRY_ORG: z.string().optional(),
-  SENTRY_PROJECT: z.string().optional(),
-  SENTRY_AUTH_TOKEN: z.string().optional(),
-  SENTRY_ENVIRONMENT: z.string().optional()
+  SENTRY_ORG: optionalString,
+  SENTRY_PROJECT: optionalString,
+  SENTRY_AUTH_TOKEN: optionalString,
+  SENTRY_ENVIRONMENT: optionalString
 });
 
 export type RuntimeEnv = z.infer<typeof RuntimeEnvSchema>;

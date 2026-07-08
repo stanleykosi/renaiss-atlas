@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { KeyRound, ShieldCheck, TimerReset } from "lucide-react";
+import { KeyRound, ShieldCheck, Sparkles, TimerReset } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -28,10 +28,11 @@ export default function SourcesPage() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="font-mono text-xs text-primary uppercase">Data Sources & Safety</p>
-            <h1 className="mt-2 text-3xl font-semibold">Official API, Server-Side Secrets</h1>
+            <p className="font-mono text-xs text-primary uppercase">Data & Safety</p>
+            <h1 className="mt-2 text-3xl font-semibold">Renaiss API, Server-Side Secrets</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Atlas is now centered on the Renaiss OS Index API. AI memos only use structured evidence returned by the backend.
+              Atlas is centered on the Renaiss OS Index API. Scores and AI memos use structured Renaiss data returned through
+              the backend.
             </p>
           </div>
           <Link href="/market" className={cn(buttonVariants({ variant: "secondary" }))}>
@@ -42,8 +43,8 @@ export default function SourcesPage() {
         <section className="grid gap-4 lg:grid-cols-3">
           <SafetyCard
             icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
-            title="Official Evidence"
-            detail="Market pulse, search, card intelligence, trades, FMV series, sets, and cert lookup are sourced from the Renaiss OS Index API."
+            title="Renaiss Data"
+            detail="Market pulse, search, card intelligence, trades, FMV series, sets, and cert lookup come from api.renaissos.com."
           />
           <SafetyCard
             icon={<KeyRound className="h-5 w-5" aria-hidden="true" />}
@@ -56,6 +57,31 @@ export default function SourcesPage() {
             detail="Atlas proxies expose upstream rate-limit headers and uses Redis for cache and Retry-After backoff state when configured."
           />
         </section>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+              <CardTitle>How Atlas Uses Renaiss Data</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 text-sm text-muted-foreground">
+              <PolicyItem
+                label="Renaiss API only"
+                detail="Every page and proxy route reads from the Renaiss OS Index API. Atlas does not blend legacy connector data."
+              />
+              <PolicyItem
+                label="Scores are deterministic interpretations"
+                detail="Atlas scores translate confidence, trades, FMV history, freshness, and activity into readable labels."
+              />
+              <PolicyItem
+                label="OpenRouter memo is validated"
+                detail="The AI memo receives structured Renaiss data only, must cite supplied Renaiss reference IDs, and is rejected if OpenRouter is missing, unsafe, or off schema."
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -81,8 +107,9 @@ export default function SourcesPage() {
               <PolicyItem label="No API-key frontend usage" detail="Browser code calls Atlas routes or server components only." />
               <PolicyItem label="No unsupported predictions" detail="Scores describe evidence quality and liquidity readiness, not guaranteed upside." />
               <PolicyItem label="No trade execution" detail="Recommendations are informational. Atlas does not list, buy, sell, approve tokens, or request signatures." />
-              <PolicyItem label="Official source only" detail="Legacy marketplace, pack, wallet, bundle, intent, and external-comparison modules have been removed from the product surface." />
-              <PolicyItem label="No mock demand" detail="Atlas does not synthesize demand, wallet P&L, or intent matches outside the official Renaiss OS evidence set." />
+              <PolicyItem label="Renaiss API only" detail="Legacy marketplace, pack, wallet, bundle, intent, and external-comparison modules have been removed from the product surface." />
+              <PolicyItem label="No mock demand" detail="Atlas does not synthesize demand, wallet P&L, or intent matches outside the Renaiss data set." />
+              <PolicyItem label="No AI fallback memo" detail="If OpenRouter does not return validated output, Atlas shows the failure state instead of fabricating a memo." />
             </div>
           </CardContent>
         </Card>

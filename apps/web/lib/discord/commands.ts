@@ -5,14 +5,14 @@ const optionType = {
 
 export const atlasApplicationCommand = {
   name: "atlas",
-  description: "Renaiss Atlas official collector intelligence",
+  description: "Renaiss Atlas collector intelligence",
   type: 1,
   dm_permission: true,
   options: [
     {
       type: optionType.subcommand,
       name: "market",
-      description: "Show official market pulse."
+      description: "Show market pulse."
     },
     {
       type: optionType.subcommand,
@@ -30,7 +30,7 @@ export const atlasApplicationCommand = {
     {
       type: optionType.subcommand,
       name: "graded",
-      description: "Look up an official graded cert.",
+      description: "Look up a graded cert.",
       options: [
         {
           type: optionType.string,
@@ -43,7 +43,7 @@ export const atlasApplicationCommand = {
     {
       type: optionType.subcommand,
       name: "sources",
-      description: "Open Atlas data-source and safety boundaries."
+      description: "Open Atlas data and safety boundaries."
     }
   ]
 } as const;

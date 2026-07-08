@@ -1,14 +1,14 @@
 import { z } from "zod";
 
-const EmptyToUndefined = z.preprocess(
-  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
-  z.string().optional()
-);
+function cleanEnvString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
+  return trimmed.length === 0 ? undefined : trimmed;
+}
 
-const OptionalUrl = z.preprocess(
-  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
-  z.string().url().optional()
-);
+const EmptyToUndefined = z.preprocess(cleanEnvString, z.string().optional());
+
+const OptionalUrl = z.preprocess(cleanEnvString, z.string().url().optional());
 
 const RedisEnvSchema = z.object({
   UPSTASH_REDIS_REST_URL: OptionalUrl,

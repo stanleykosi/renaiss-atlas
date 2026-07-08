@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
-const officialCharizardToken =
+const renaissCharizardToken =
   "L2NhcmQvcG9rZW1vbi9wb2tlbW9uLWphcGFuZXNlLWNsbC10cmFkaW5nLWNhcmQtZ2FtZS1jbGFzc2ljLWNoYXJpemFyZC1oby1vaC1leC1kZWNrLzAwMy1jaGFyaXphcmQtcHNhLTEwLWphcGFuZXNlLTI4MDAwOTRm";
 
 test.skip(process.env["CAPTURE_SCREENSHOTS"] !== "true", "Run pnpm screenshots to capture docs screenshots.");
@@ -15,7 +15,7 @@ test("captures product screenshots for deployment docs", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Renaiss OS Index Intelligence" })).toBeVisible({ timeout: 120_000 });
   await page.screenshot({ path: "docs/screenshots/market.png", fullPage: true });
 
-  await page.goto(`/cards/${officialCharizardToken}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`/cards/${renaissCharizardToken}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Charizard", exact: true })).toBeVisible({
     timeout: 120_000
   });

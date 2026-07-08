@@ -8,7 +8,7 @@ const entryLinks = [
   { href: "/market", label: "Market Pulse" },
   { href: "/cards", label: "Search Card" },
   { href: "/graded", label: "Cert Lookup" },
-  { href: "/sources", label: "Sources" }
+  { href: "/sources", label: "Safety" }
 ] as const;
 
 export default function HomePage() {
@@ -41,8 +41,8 @@ export default function HomePage() {
             Renaiss Atlas
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-            Community tools are excellent at finding individual signals. Renaiss Atlas turns
-            those signals into a source-aware action layer for the entire collector economy.
+            Renaiss market data, deterministic Atlas scoring, and a validated OpenRouter memo layer for collectors who need
+            fast conviction without keys, signatures, custody, or trade execution.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/market" className={cn(buttonVariants())}>
@@ -59,12 +59,12 @@ export default function HomePage() {
           <StatusTile
             icon={<Database className="h-5 w-5" aria-hidden="true" />}
             label="Renaiss OS Index"
-            value="official API"
+            value="Renaiss API"
           />
           <StatusTile
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
             label="AI memo layer"
-            value="schema-validated"
+            value="OpenRouter"
           />
           <StatusTile
             icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}

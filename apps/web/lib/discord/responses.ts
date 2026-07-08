@@ -5,7 +5,7 @@ import {
   getRenaissOsCardIntelligence,
   getRenaissOsMarketPulse,
   lookupRenaissOsGradedCert,
-  officialSourceSummary,
+  renaissConfidenceSummary,
   parseRenaissOsCardHref,
   searchRenaissOsCards
 } from "@/lib/renaiss-os/data";
@@ -61,9 +61,9 @@ async function marketResponse(context: AtlasDiscordContext): Promise<DiscordInte
   return messageResponse(
     [
       "**Atlas Market Pulse**",
-      indices.length === 0 ? "No index tiles returned by the official API." : indices,
+      indices.length === 0 ? "No index tiles returned by Renaiss." : indices,
       featured.length === 0 ? "" : `Featured:\n${featured}`,
-      `Freshness: ${dateLabel(freshestIndex)} via official Renaiss OS Index API.`,
+      `Freshness: ${dateLabel(freshestIndex)} via Renaiss OS Index API.`,
       `Open: ${appLink(context, "/market")}`
     ]
       .filter((line) => line.length > 0)
@@ -78,18 +78,20 @@ async function cardDetailResponse(query: string, context: AtlasDiscordContext): 
   const intelligence = await getRenaissOsCardIntelligence(path.href);
   if (intelligence == null) return null;
 
-  const sourceScore = intelligence.scores.find((score) => score.label === "Source confidence");
-  const liquidityScore = intelligence.scores.find((score) => score.label === "liquidity");
+  const liquidityScore = intelligence.scores.find((score) => score.label === "Liquidity signal");
   const cardPath = `/cards/${encodeURIComponent(encodeRenaissOsCardToken(intelligence.card.href))}`;
+  const memoLine =
+    intelligence.memo == null
+      ? "AI memo: unavailable; OpenRouter did not return validated output."
+      : `AI memo: ${intelligence.memo.validationStatus} via ${intelligence.memo.provider}; confidence ${intelligence.memo.output.confidence}.`;
 
   return messageResponse(
     [
       `**Atlas Card Intelligence: ${cleanLine(intelligence.card.name)}**`,
       `FMV: ${formatUsdCents(intelligence.card.priceUsdCents)} | Confidence: ${intelligence.card.confidence ?? "low"}`,
-      `Sources: ${officialSourceSummary(intelligence.card)}`,
+      renaissConfidenceSummary(intelligence.card),
       `Liquidity: ${liquidityScore == null ? "n/a" : `${Math.round(liquidityScore.value)} (${liquidityScore.confidence})`}`,
-      `Source score: ${sourceScore == null ? "n/a" : `${Math.round(sourceScore.value)} (${sourceScore.confidence})`}`,
-      `AI memo: ${intelligence.memo.validationStatus} via ${intelligence.memo.provider}; confidence ${intelligence.memo.output.confidence}.`,
+      memoLine,
       `Freshness: ${dateLabel(intelligence.card.updatedAt ?? intelligence.card.lastSaleAt)}.`,
       `Open: ${appLink(context, cardPath)}`
     ].join("\n")
@@ -103,7 +105,7 @@ async function cardSearchResponse(query: string, context: AtlasDiscordContext): 
   const results = await searchRenaissOsCards(query);
   if (results.results.length === 0) {
     return messageResponse(
-      [`**Atlas Card Search**`, `No official Renaiss OS result for "${cleanLine(query)}".`, `Open: ${appLink(context, "/cards")}`].join(
+      [`**Atlas Card Search**`, `No Renaiss OS result for "${cleanLine(query)}".`, `Open: ${appLink(context, "/cards")}`].join(
         "\n"
       )
     );
@@ -121,7 +123,7 @@ async function cardSearchResponse(query: string, context: AtlasDiscordContext): 
     [
       `**Atlas Card Search: ${cleanLine(query)}**`,
       cards,
-      "Open a result for full card intelligence and AI deal memo."
+      "Open a result for card intelligence and a validated OpenRouter memo."
     ].join("\n")
   );
 }
@@ -132,7 +134,7 @@ async function gradedResponse(cert: string, context: AtlasDiscordContext): Promi
     return messageResponse(
       [
         `**Atlas Graded Cert Lookup**`,
-        `No official Renaiss OS graded result for cert ${cleanLine(cert)}.`,
+        `No Renaiss OS graded result for cert ${cleanLine(cert)}.`,
         `Open: ${appLink(context, `/graded?cert=${encodeURIComponent(cert)}`)}`
       ].join("\n")
     );
@@ -143,7 +145,7 @@ async function gradedResponse(cert: string, context: AtlasDiscordContext): Promi
       `**Atlas Graded Cert: ${cleanLine(lookup.certNumber)}**`,
       `${cleanLine(lookup.card.name)} ${lookup.gradeLabel ?? lookup.card.gradeLabel}`,
       `FMV: ${formatUsdCents(lookup.card.priceUsdCents)} | Confidence: ${lookup.card.confidence ?? "low"}`,
-      `Freshness: ${dateLabel(lookup.card.lastSaleAt)} via official Renaiss OS Index API.`,
+      `Freshness: ${dateLabel(lookup.card.lastSaleAt)} via Renaiss OS Index API.`,
       `Open cert: ${appLink(context, `/graded/${encodeURIComponent(cert)}`)}`,
       `Open card: ${appLink(context, atlasCardHref(lookup.card))}`
     ].join("\n")
@@ -176,8 +178,8 @@ export async function handleAtlasDiscordInteraction(
     if (subcommand.name === "sources") {
       return messageResponse(
         [
-          "**Atlas Data Sources & Safety**",
-          "Official Renaiss OS Index API only. Read-only, source-cited, no keys, approvals, custody, or trade execution.",
+          "**Atlas Data & Safety**",
+          "Renaiss OS Index API only. Read-only, no keys, approvals, custody, or trade execution.",
           `Open: ${appLink(context, "/sources")}`
         ].join("\n")
       );
@@ -189,7 +191,7 @@ export async function handleAtlasDiscordInteraction(
     return messageResponse(
       [
         "**Atlas is temporarily unavailable**",
-        `Official API lookup failed: ${cleanLine(reason)}`,
+        `Renaiss API lookup failed: ${cleanLine(reason)}`,
         "Try again shortly or open the Vercel app."
       ].join("\n")
     );

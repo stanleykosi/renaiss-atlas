@@ -20,5 +20,5 @@ export const REQUIRED_ATLAS_GUARDRAILS = [
   "boundary validation",
   "stale-data states",
   "server-only API credentials",
-  "deterministic AI fallback"
+  "schema-validated OpenRouter output"
 ] as const;

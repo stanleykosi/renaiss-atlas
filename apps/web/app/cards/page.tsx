@@ -32,9 +32,9 @@ export default async function CardsPage({ searchParams }: CardsPageProps) {
         <header className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-mono text-xs text-primary uppercase">Search Card</p>
-            <h1 className="mt-2 text-3xl font-semibold">Official Card Search</h1>
+            <h1 className="mt-2 text-3xl font-semibold">Card Search</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Search Renaiss OS Index cards, then open source-backed card intelligence and AI memo evidence.
+              Search Renaiss OS Index cards, then open card intelligence, deterministic scores, and a validated OpenRouter memo.
             </p>
           </div>
           <Link href="/market" className={cn(buttonVariants({ variant: "secondary" }))}>
@@ -58,11 +58,11 @@ export default async function CardsPage({ searchParams }: CardsPageProps) {
         {query.length === 0 ? (
           <EmptyState
             title="Start with a card search"
-            detail="Try a character, card name, set, or card number to begin the official demo path."
+            detail="Try a character, card name, set, or card number to begin."
           />
         ) : results.results.length === 0 ? (
           <EmptyState
-            title="No official matches"
+            title="No matches"
             detail="Renaiss OS returned no cards for that query. Try a broader card or character name."
           />
         ) : (

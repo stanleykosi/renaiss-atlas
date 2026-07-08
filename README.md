@@ -10,10 +10,10 @@ Atlas does not collect private keys or seed phrases, request token approvals, ex
 - `apps/web/app/v1/[...path]/route.ts` backend proxy for the official Renaiss OS Index API.
 - `apps/web/app/api/discord/interactions/route.ts` signed Discord interactions endpoint.
 - `packages/core` official scoring, source/freshness schemas, safety constants, and utilities.
-- `packages/ai` schema-validated OpenRouter memo provider with deterministic fallback.
+- `packages/ai` schema-validated OpenRouter memo provider. If OpenRouter is missing, unavailable, or unsafe, Atlas fails loudly instead of fabricating a fallback memo.
 - Discord is supported as a Vercel-hosted interactions webhook, not a long-running gateway worker.
 
-The final demo path is:
+The production path is:
 
 ```text
 Market Pulse -> Search Card -> Card Intelligence -> Graded Cert Lookup -> AI Deal Memo
@@ -67,6 +67,8 @@ Required:
 RENAISS_OS_BASE_URL=https://api.renaissos.com
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=
 ```
 
 Recommended:
@@ -99,14 +101,6 @@ SENTRY_AUTH_TOKEN=
 SENTRY_ENVIRONMENT=production
 ```
 
-Add these on Vercel when you want live AI memos instead of the deterministic fallback:
-
-```bash
-AI_ENABLED=true
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=
-```
-
 The current production app is designed to run entirely on Vercel. Railway is not required unless Atlas later adds a long-running worker, database indexer, Discord gateway process, or other always-on service.
 
 Discord interactions URL:
@@ -128,7 +122,7 @@ pnpm discord:register
 - Read-only API consumption only.
 - No private keys, seed phrases, token approvals, custody, lending execution, or trade execution.
 - Deterministic scoring runs before AI.
-- AI output is Zod-validated, source-cited, confidence-capped, and falls back deterministically.
+- AI output is Zod-validated, citation-checked, confidence-capped, and rejected when unsafe or unavailable.
 - Scores and memos use official Renaiss OS confidence, source counts, observation counts, last sale timestamps, trades, FMV series, and source breakdown.
 
 ## Deployment

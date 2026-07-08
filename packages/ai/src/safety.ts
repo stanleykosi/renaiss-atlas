@@ -33,14 +33,13 @@ function unique(values: string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
-function memoText(memo: AiMemoOutput): string {
+function memoSafetyText(memo: AiMemoOutput): string {
   return [
     memo.recommendation,
     ...memo.evidence,
     ...memo.risks,
     memo.nextAction.label,
-    memo.nextAction.type,
-    memo.disclaimer
+    memo.nextAction.type
   ].join("\n");
 }
 
@@ -116,7 +115,7 @@ export function validateAiMemoOutput(output: unknown, input: AiMemoInput):
     issues.push(`unknown_sources:${unknownSources.join(",")}`);
   }
 
-  const prohibited = findProhibitedAiPhrases(memoText(parsed.data));
+  const prohibited = findProhibitedAiPhrases(memoSafetyText(parsed.data));
   if (prohibited.length > 0) {
     issues.push(`prohibited_phrases:${prohibited.join(",")}`);
   }
@@ -126,7 +125,14 @@ export function validateAiMemoOutput(output: unknown, input: AiMemoInput):
     issues.push("missing_informational_disclaimer");
   }
 
-  if (issues.some((issue) => issue.startsWith("unknown_sources") || issue.startsWith("prohibited_phrases"))) {
+  if (
+    issues.some(
+      (issue) =>
+        issue.startsWith("unknown_sources") ||
+        issue.startsWith("prohibited_phrases") ||
+        issue === "missing_informational_disclaimer"
+    )
+  ) {
     return { success: false, issues };
   }
 

@@ -10,7 +10,7 @@ export default function CardDetailNotFound() {
         <p className="font-mono text-sm text-primary">Card</p>
         <h1 className="mt-3 text-2xl font-semibold">Card not found.</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Atlas could not map this token to an official Renaiss OS card path.
+          Atlas could not map this token to a Renaiss OS card path.
         </p>
         <Link href="/market" className={cn(buttonVariants({ className: "mt-6" }))}>
           Return to market

@@ -28,7 +28,7 @@ export default async function GradedPage({ searchParams }: GradedPageProps) {
         <header className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-mono text-xs text-primary uppercase">Graded Cert Lookup</p>
-            <h1 className="mt-2 text-3xl font-semibold">Official Certification Evidence</h1>
+            <h1 className="mt-2 text-3xl font-semibold">Certification Evidence</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               Lookup is proxied server-side through Renaiss OS. Atlas never asks for wallet signatures, approvals, private keys, or custody.
             </p>
@@ -51,7 +51,7 @@ export default async function GradedPage({ searchParams }: GradedPageProps) {
         </form>
 
         {lookup == null ? (
-          <EmptyState title="Enter a cert" detail="Use a graded cert number to continue the demo path into official lookup evidence." />
+          <EmptyState title="Enter a cert" detail="Use a graded cert number to continue into Renaiss lookup data." />
         ) : (
           <LookupResult lookup={lookup} />
         )}

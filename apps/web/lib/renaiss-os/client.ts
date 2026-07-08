@@ -16,14 +16,20 @@ import {
 } from "./schemas";
 import { redisGetJson, redisSetJson } from "./redis";
 
+function cleanEnvString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
+  return trimmed.length === 0 ? undefined : trimmed;
+}
+
 const RenaissOsEnvSchema = z.object({
   RENAISS_OS_BASE_URL: z
     .preprocess(
-      (value) => (value === "" || value == null ? "https://api.renaissos.com" : value),
+      (value) => cleanEnvString(value) ?? "https://api.renaissos.com",
       z.string().url()
     ),
-  RENAISS_OS_API_KEY: z.string().optional(),
-  RENAISS_OS_API_SECRET: z.string().optional()
+  RENAISS_OS_API_KEY: z.preprocess(cleanEnvString, z.string().optional()),
+  RENAISS_OS_API_SECRET: z.preprocess(cleanEnvString, z.string().optional())
 });
 
 export type RenaissOsRateLimit = {

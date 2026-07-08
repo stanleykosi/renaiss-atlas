@@ -36,13 +36,14 @@ export default async function MarketPage() {
             <p className="font-mono text-xs text-primary uppercase">Market Pulse</p>
             <h1 className="mt-2 text-3xl font-semibold">Renaiss OS Index Intelligence</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Official index tiles, featured movers, and recent public trades. Atlas adds read-only scoring and source-cited memos.
+              Renaiss index tiles, featured movers, and recent public trades. Atlas adds deterministic scores and validated
+              OpenRouter memos without exposing API secrets.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/sources" className={cn(buttonVariants({ variant: "secondary" }))}>
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              Sources & safety
+              Data & safety
             </Link>
             <Link href="/" className={cn(buttonVariants({ variant: "ghost" }))}>
               Home

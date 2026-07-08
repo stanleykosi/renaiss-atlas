@@ -5,8 +5,7 @@ export const RISK_FLAGS = [
   "official_observations_missing",
   "single_source_evidence",
   "stale_last_sale",
-  "trade_activity_missing",
-  "ai_fallback_used"
+  "trade_activity_missing"
 ] as const;
 
 export const RiskFlagSchema = z.enum(RISK_FLAGS);

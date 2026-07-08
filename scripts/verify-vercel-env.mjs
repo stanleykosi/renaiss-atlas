@@ -58,14 +58,11 @@ inferVercelAppUrl();
 requireValue("RENAISS_OS_BASE_URL");
 requireValue("UPSTASH_REDIS_REST_URL");
 requireValue("UPSTASH_REDIS_REST_TOKEN");
+requireValue("OPENROUTER_API_KEY");
+requireValue("OPENROUTER_MODEL");
 
 warnValue("RENAISS_OS_API_KEY");
 warnValue("RENAISS_OS_API_SECRET");
-
-if (process.env.AI_ENABLED === "true") {
-  requireValue("OPENROUTER_API_KEY");
-  requireValue("OPENROUTER_MODEL");
-}
 
 for (const name of warnings) {
   console.warn(`[verify-vercel-env] Recommended env missing: ${name}`);

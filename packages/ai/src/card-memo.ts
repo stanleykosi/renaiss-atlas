@@ -2,10 +2,19 @@ import { createHash } from "node:crypto";
 
 import { AiMemoInputSchema } from "@renaiss/core";
 
-import { createDeterministicCardMemo } from "./fallback.js";
 import { buildCardMemoProviderRequest, createAiProviderFromEnv, type AiProvider } from "./providers.js";
-import { capMemoConfidence, validateAiMemoOutput } from "./safety.js";
+import { validateAiMemoOutput } from "./safety.js";
 import type { AiCardMemoResult, AiMemoInput, AiMemoOutput } from "./schemas.js";
+
+export class AiMemoGenerationError extends Error {
+  readonly issues: string[];
+
+  constructor(message: string, issues: string[]) {
+    super(`${message} ${issues.join("; ")}`);
+    this.name = "AiMemoGenerationError";
+    this.issues = issues;
+  }
+}
 
 function stableStringify(value: unknown): string {
   if (typeof value === "bigint") return JSON.stringify(value.toString());
@@ -25,70 +34,33 @@ export function hashAiMemoInput(input: AiMemoInput): string {
   return createHash("sha256").update(stableStringify(input)).digest("hex");
 }
 
-function fallbackResult(input: {
-  parsedInput: AiMemoInput;
-  inputHash: string;
-  issues: string[];
-  now: Date;
-}): AiCardMemoResult {
-  const capped = capMemoConfidence({
-    memo: createDeterministicCardMemo(input.parsedInput),
-    evidence: input.parsedInput
-  });
-
-  return {
-    subject: input.parsedInput.subject,
-    provider: "deterministic",
-    model: "atlas-fallback",
-    inputHash: input.inputHash,
-    output: capped.memo,
-    validationStatus: "fallback",
-    sourceIds: capped.memo.sourcesUsed,
-    safetyIssues: [...input.issues, ...capped.issues],
-    createdAt: input.now.toISOString(),
-    deterministicFallback: true
-  };
-}
-
 export async function generateCardMemo(input: unknown, options: {
-  provider?: AiProvider | null;
+  provider?: AiProvider;
   env?: Record<string, string | undefined>;
   now?: Date;
 } = {}): Promise<AiCardMemoResult> {
   const parsedInput = AiMemoInputSchema.parse(input);
   const now = options.now ?? new Date();
   const inputHash = hashAiMemoInput(parsedInput);
-  const provider = options.provider === undefined ? createAiProviderFromEnv(options.env) : options.provider;
-
-  if (provider == null) {
-    return fallbackResult({
-      parsedInput,
-      inputHash,
-      issues: ["provider_unavailable"],
-      now
-    });
+  let provider: AiProvider;
+  try {
+    provider = options.provider ?? createAiProviderFromEnv(options.env);
+  } catch (error) {
+    const issue = error instanceof Error ? `provider_config_error:${error.message}` : "provider_config_error";
+    throw new AiMemoGenerationError("OpenRouter is not configured correctly.", [issue]);
   }
 
   let output: unknown;
   try {
     output = await provider.generateCardMemo(buildCardMemoProviderRequest(parsedInput));
   } catch (error) {
-    return fallbackResult({
-      parsedInput,
-      inputHash,
-      issues: [error instanceof Error ? `provider_error:${error.message}` : "provider_error"],
-      now
-    });
+    const issue = error instanceof Error ? `provider_error:${error.message}` : "provider_error";
+    throw new AiMemoGenerationError("OpenRouter memo generation failed.", [issue]);
   }
 
   const validated = validateAiMemoOutput(output, parsedInput);
   if (!validated.success) {
-    return fallbackResult({
-      parsedInput,
-      inputHash,
-      issues: validated.issues,
-      now
-    });
+    throw new AiMemoGenerationError("OpenRouter memo output failed Atlas safety validation.", validated.issues);
   }
 
   const memo: AiMemoOutput = validated.memo;
@@ -102,7 +74,6 @@ export async function generateCardMemo(input: unknown, options: {
     validationStatus: "validated",
     sourceIds: memo.sourcesUsed,
     safetyIssues: validated.issues,
-    createdAt: now.toISOString(),
-    deterministicFallback: false
+    createdAt: now.toISOString()
   };
 }

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("opens official market pulse and search entry", async ({ page }) => {
+test("opens market pulse and search entry", async ({ page }) => {
   await page.goto("/market", { waitUntil: "domcontentloaded" });
 
   await expect(page.getByRole("heading", { name: "Renaiss OS Index Intelligence" })).toBeVisible();

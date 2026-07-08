@@ -15,20 +15,17 @@ export type AiProvider = {
   generateCardMemo(request: CardMemoProviderRequest): Promise<unknown>;
 };
 
-const booleanFlag = z.preprocess(
-  (value) => (value === undefined ? "false" : value),
-  z.enum(["true", "false"]).transform((value) => value === "true")
-);
+function cleanEnvString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
+  return trimmed.length === 0 ? undefined : trimmed;
+}
 
-const optionalUrl = z.preprocess(
-  (value) => (value === "" ? undefined : value),
-  z.string().url().optional()
-);
+const optionalUrl = z.preprocess(cleanEnvString, z.string().url().optional());
 
 export const AiProviderEnvSchema = z.object({
-  AI_ENABLED: booleanFlag,
-  OPENROUTER_API_KEY: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
-  OPENROUTER_MODEL: z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional()),
+  OPENROUTER_API_KEY: z.preprocess(cleanEnvString, z.string().min(1)),
+  OPENROUTER_MODEL: z.preprocess(cleanEnvString, z.string().min(1)),
   NEXT_PUBLIC_APP_URL: optionalUrl
 });
 
@@ -47,6 +44,26 @@ const ChatCompletionResponseSchema = z.object({
     )
     .min(1)
 });
+
+function parseJsonObject(content: string): unknown {
+  const trimmed = content.trim();
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+    if (fenced?.[1] != null) {
+      return JSON.parse(fenced[1]) as unknown;
+    }
+
+    const firstBrace = trimmed.indexOf("{");
+    const lastBrace = trimmed.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)) as unknown;
+    }
+
+    throw new Error(`AI provider returned non-JSON memo content`);
+  }
+}
 
 export class OpenRouterProvider implements AiProvider {
   readonly name: string;
@@ -103,25 +120,20 @@ export class OpenRouterProvider implements AiProvider {
       throw new Error(`AI provider ${this.name} returned an empty memo`);
     }
 
-    return JSON.parse(content) as unknown;
+    return parseJsonObject(content);
   }
 }
 
 export function createAiProviderFromEnv(
   rawEnv: Record<string, string | undefined> = process.env
-): AiProvider | null {
+): AiProvider {
   const env = AiProviderEnvSchema.parse(rawEnv);
-  if (!env.AI_ENABLED) return null;
 
-  if (env.OPENROUTER_API_KEY != null && env.OPENROUTER_MODEL != null) {
-    return new OpenRouterProvider({
-      apiKey: env.OPENROUTER_API_KEY,
-      model: env.OPENROUTER_MODEL,
-      referer: env.NEXT_PUBLIC_APP_URL
-    });
-  }
-
-  return null;
+  return new OpenRouterProvider({
+    apiKey: env.OPENROUTER_API_KEY,
+    model: env.OPENROUTER_MODEL,
+    referer: env.NEXT_PUBLIC_APP_URL
+  });
 }
 
 export function buildCardMemoProviderRequest(input: AiMemoInput): CardMemoProviderRequest {
