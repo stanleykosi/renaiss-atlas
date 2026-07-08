@@ -5,10 +5,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const entryLinks = [
-  { href: "/market", label: "Market" },
-  { href: "/wallet", label: "Wallet" },
-  { href: "/packs", label: "Packs" },
-  { href: "/intents", label: "Intents" },
+  { href: "/market", label: "Market Pulse" },
+  { href: "/cards", label: "Search Card" },
+  { href: "/graded", label: "Cert Lookup" },
   { href: "/sources", label: "Sources" }
 ] as const;
 
@@ -47,11 +46,11 @@ export default function HomePage() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/market" className={cn(buttonVariants())}>
-              Open market map
+              Open market pulse
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/sources" className={cn(buttonVariants({ variant: "secondary" }))}>
-              View source policy
+            <Link href="/cards" className={cn(buttonVariants({ variant: "secondary" }))}>
+              Search card
             </Link>
           </div>
         </div>
@@ -59,8 +58,8 @@ export default function HomePage() {
         <div className="grid gap-3">
           <StatusTile
             icon={<Database className="h-5 w-5" aria-hidden="true" />}
-            label="Postgres + Drizzle"
-            value="source-aware"
+            label="Renaiss OS Index"
+            value="official API"
           />
           <StatusTile
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}

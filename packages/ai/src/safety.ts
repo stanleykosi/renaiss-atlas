@@ -22,14 +22,11 @@ export const PROHIBITED_AI_PHRASES = [
 ] as const;
 
 const HIGH_RISK_FLAGS = new Set([
-  "mock_data",
-  "external_comp_mismatch",
-  "stale_renaiss_data",
-  "external_comp_stale",
-  "low_match_confidence",
-  "activity_data_missing",
-  "possible_stale_fmv",
-  "price_outlier"
+  "official_confidence_low",
+  "official_observations_missing",
+  "single_source_evidence",
+  "stale_last_sale",
+  "trade_activity_missing"
 ]);
 
 function unique(values: string[]): string[] {
@@ -59,7 +56,7 @@ export function confidenceCapForInput(input: AiMemoInput): ConfidenceLabel {
     cap = minConfidence(cap, "medium");
   }
 
-  if (input.sources.length === 0 || input.mockData || input.riskFlags.includes("mock_data")) {
+  if (input.sources.length === 0) {
     cap = minConfidence(cap, "low");
   }
 
@@ -68,7 +65,7 @@ export function confidenceCapForInput(input: AiMemoInput): ConfidenceLabel {
   }
 
   if (input.riskFlags.some((flag) => HIGH_RISK_FLAGS.has(flag))) {
-    cap = minConfidence(cap, input.riskFlags.includes("mock_data") ? "low" : "medium");
+    cap = minConfidence(cap, "medium");
   }
 
   return cap;
@@ -86,9 +83,6 @@ export function capMemoConfidence(input: {
       : [`confidence_capped:${input.memo.confidence}_to_${cappedConfidence}`];
 
   const riskNotes = [...input.memo.risks];
-  if (input.evidence.mockData && !riskNotes.some((risk) => risk.toLowerCase().includes("mock"))) {
-    riskNotes.push("Mock data is labeled and must be verified against live sources.");
-  }
   if (
     input.evidence.freshness.some((freshness) => freshness.status === "stale") &&
     !riskNotes.some((risk) => risk.toLowerCase().includes("stale"))

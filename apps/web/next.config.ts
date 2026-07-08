@@ -16,7 +16,7 @@ const shouldUseRealSentryPackage = sentryConfigured && process.env["NODE_ENV"] =
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
-  transpilePackages: ["@renaiss/core", "@renaiss/db", "@renaiss/discord", "@renaiss/ui"],
+  transpilePackages: ["@renaiss/core", "@renaiss/ai"],
   poweredByHeader: false,
   eslint: {
     ignoreDuringBuilds: true

@@ -1,6 +1,7 @@
 export const DISALLOWED_ATLAS_CAPABILITIES = [
   "private key collection",
   "seed phrase collection",
+  "wallet signatures",
   "token approvals",
   "trade execution",
   "lending execution",
@@ -18,6 +19,6 @@ export const REQUIRED_ATLAS_GUARDRAILS = [
   "risk flags",
   "boundary validation",
   "stale-data states",
-  "mock-data labels",
+  "server-only API credentials",
   "deterministic AI fallback"
 ] as const;

@@ -1,39 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-test("opens a seeded card detail page", async ({ page }) => {
-  await page.goto("/cards/demo-card-001", { waitUntil: "domcontentloaded" });
+const officialCharizardToken =
+  "L2NhcmQvcG9rZW1vbi9wb2tlbW9uLWphcGFuZXNlLWNsbC10cmFkaW5nLWNhcmQtZ2FtZS1jbGFzc2ljLWNoYXJpemFyZC1oby1vaC1leC1kZWNrLzAwMy1jaGFyaXphcmQtcHNhLTEwLWphcGFuZXNlLTI4MDAwOTRm";
 
-  await expect(page.getByRole("heading", { name: "Pikachu Renaiss Demo PSA 10", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Price" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Scores" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Source Timeline" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recommended Actions" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "External Comps" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Bundles" })).toBeVisible();
-  await expect(page.getByText(/Sequential cert pair/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Intents" })).toBeVisible();
-  await expect(page.getByText(/Seller demand:/)).toBeVisible();
-  await expect(page.getByText("Informational only.")).toBeVisible();
+test("opens official card intelligence", async ({ page }) => {
+  await page.goto(`/cards/${officialCharizardToken}`, { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByRole("heading", { name: "Charizard", exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Official Price Panel" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Atlas Scores From Official Evidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Source Breakdown" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Graded Cert Lookup" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI Deal Memo" })).toBeVisible();
 });
 
-test("shows seller demand on an intent-matched card", async ({ page }) => {
-  await page.goto("/cards/demo-card-005", { waitUntil: "domcontentloaded" });
+test("shows a not-found state for an unsupported card token", async ({ page }) => {
+  await page.goto("/cards/not-an-official-card-token");
 
-  await expect(page.getByRole("heading", { name: "Nami Renaiss Demo Intent Match", exact: true })).toBeVisible();
-  await expect(page.getByText("Seller demand: 1")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Intents" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: "Looking for PSA 10 Japanese One Piece cards under $150.",
-      exact: true
-    })
-  ).toBeVisible();
-  await expect(page.getByText("TCG match").first()).toBeVisible();
-});
-
-test("shows the card detail empty state for an unknown token", async ({ page }) => {
-  await page.goto("/cards/not-a-seeded-card");
-
-  await expect(page.getByRole("heading", { name: "Card not found." })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("link", { name: "Return to market" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "This page could not be found." })).toBeVisible({ timeout: 15_000 });
 });

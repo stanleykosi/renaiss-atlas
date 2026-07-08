@@ -2,23 +2,14 @@ import { z } from "zod";
 
 import { ConfidenceLabelSchema } from "../constants/confidence.js";
 
-export const ScoreEntityTypeSchema = z.enum(["card", "wallet", "bundle", "intent", "pack"]);
+export const ScoreEntityTypeSchema = z.enum(["card"]);
 
 export const ScoreTypeSchema = z.enum([
   "activity_velocity",
-  "offer_depth",
-  "price_consensus",
   "liquidity",
   "deal",
   "price_confidence",
-  "external_comp_confidence",
-  "listing_health",
-  "demand",
-  "bundle",
-  "collector_premium",
-  "collateral_readiness",
-  "wallet_action_priority",
-  "quest_suitability"
+  "source_confidence"
 ]);
 
 export const ScoreSchema = z.object({

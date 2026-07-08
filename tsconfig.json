@@ -2,13 +2,7 @@
   "$schema": "./config/tsconfig.schema.json",
   "files": [],
   "references": [
-    { "path": "./apps/api" },
-    { "path": "./apps/discord" },
-    { "path": "./apps/worker" },
     { "path": "./packages/ai" },
-    { "path": "./packages/connectors" },
-    { "path": "./packages/core" },
-    { "path": "./packages/db" },
-    { "path": "./packages/ui" }
+    { "path": "./packages/core" }
   ]
 }

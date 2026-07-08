@@ -15,30 +15,26 @@ export type AiProvider = {
   generateCardMemo(request: CardMemoProviderRequest): Promise<unknown>;
 };
 
-function urlWithDefault(defaultValue: string) {
-  return z.preprocess(
-    (value) => (value === "" || value === undefined ? defaultValue : value),
-    z.string().url()
-  );
-}
-
 const booleanFlag = z.preprocess(
   (value) => (value === undefined ? "false" : value),
   z.enum(["true", "false"]).transform((value) => value === "true")
 );
 
+const optionalUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().url().optional()
+);
+
 export const AiProviderEnvSchema = z.object({
   AI_ENABLED: booleanFlag,
-  AI_PROVIDER: z.enum(["auto", "openai", "mimo", "deterministic"]).default("auto"),
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_BASE_URL: urlWithDefault("https://api.openai.com/v1"),
-  OPENAI_MODEL: z.string().min(1).default("gpt-4.1-mini"),
-  MIMO_API_KEY: z.string().optional(),
-  MIMO_BASE_URL: urlWithDefault("https://token-plan-cn.xiaomimimo.com/v1"),
-  MIMO_MODEL: z.string().min(1).default("mimo-v2.5")
+  OPENROUTER_API_KEY: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
+  OPENROUTER_MODEL: z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional()),
+  NEXT_PUBLIC_APP_URL: optionalUrl
 });
 
 export type AiProviderEnv = z.infer<typeof AiProviderEnvSchema>;
+
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 const ChatCompletionResponseSchema = z.object({
   choices: z
@@ -52,35 +48,40 @@ const ChatCompletionResponseSchema = z.object({
     .min(1)
 });
 
-export class OpenAiCompatibleProvider implements AiProvider {
+export class OpenRouterProvider implements AiProvider {
   readonly name: string;
   readonly model: string;
 
   private readonly apiKey: string;
-  private readonly baseUrl: string;
   private readonly fetchFn: typeof fetch;
+  private readonly referer: string | undefined;
 
   constructor(input: {
-    name: string;
     apiKey: string;
-    baseUrl: string;
     model: string;
+    referer?: string | undefined;
     fetchFn?: typeof fetch;
   }) {
-    this.name = input.name;
+    this.name = "openrouter";
     this.apiKey = input.apiKey;
-    this.baseUrl = input.baseUrl.replace(/\/$/, "");
     this.model = input.model;
+    this.referer = input.referer;
     this.fetchFn = input.fetchFn ?? fetch;
   }
 
   async generateCardMemo(request: CardMemoProviderRequest): Promise<unknown> {
-    const response = await this.fetchFn(`${this.baseUrl}/chat/completions`, {
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${this.apiKey}`,
+      "content-type": "application/json",
+      "x-title": "Renaiss Atlas"
+    };
+    if (this.referer != null) {
+      headers["http-referer"] = this.referer;
+    }
+
+    const response = await this.fetchFn(`${OPENROUTER_BASE_URL}/chat/completions`, {
       method: "POST",
-      headers: {
-        authorization: `Bearer ${this.apiKey}`,
-        "content-type": "application/json"
-      },
+      headers,
       body: JSON.stringify({
         model: this.model,
         messages: [
@@ -110,23 +111,13 @@ export function createAiProviderFromEnv(
   rawEnv: Record<string, string | undefined> = process.env
 ): AiProvider | null {
   const env = AiProviderEnvSchema.parse(rawEnv);
-  if (!env.AI_ENABLED || env.AI_PROVIDER === "deterministic") return null;
+  if (!env.AI_ENABLED) return null;
 
-  if ((env.AI_PROVIDER === "auto" || env.AI_PROVIDER === "mimo") && env.MIMO_API_KEY != null) {
-    return new OpenAiCompatibleProvider({
-      name: "mimo",
-      apiKey: env.MIMO_API_KEY,
-      baseUrl: env.MIMO_BASE_URL,
-      model: env.MIMO_MODEL
-    });
-  }
-
-  if ((env.AI_PROVIDER === "auto" || env.AI_PROVIDER === "openai") && env.OPENAI_API_KEY != null) {
-    return new OpenAiCompatibleProvider({
-      name: "openai",
-      apiKey: env.OPENAI_API_KEY,
-      baseUrl: env.OPENAI_BASE_URL,
-      model: env.OPENAI_MODEL
+  if (env.OPENROUTER_API_KEY != null && env.OPENROUTER_MODEL != null) {
+    return new OpenRouterProvider({
+      apiKey: env.OPENROUTER_API_KEY,
+      model: env.OPENROUTER_MODEL,
+      referer: env.NEXT_PUBLIC_APP_URL
     });
   }
 

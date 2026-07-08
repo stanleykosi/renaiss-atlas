@@ -2,35 +2,22 @@ import { z } from "zod";
 
 import { ConfidenceLabelSchema } from "../constants/confidence.js";
 import { ActionRecommendationSchema, ActionTypeSchema } from "./action.schema.js";
-import { BundleSchema } from "./bundle.schema.js";
 import { CardSchema } from "./card.schema.js";
 import { FreshnessSchema, SourceRefSchema } from "./source-ref.schema.js";
 import { ScoreSchema } from "./score.schema.js";
 
-const WalletSummarySchema = z.object({
-  address: z.string().min(1),
-  totalCards: z.number().int().nonnegative(),
-  listedCards: z.number().int().nonnegative(),
-  unlistedCards: z.number().int().nonnegative(),
-  totalFmvUsd: z.number().nonnegative().nullable().optional(),
-  totalAskUsd: z.number().nonnegative().nullable().optional(),
-  avgLiquidityScore: z.number().min(0).max(100).nullable().optional()
-});
-
 export const AiMemoInputSchema = z.object({
   subject: z.object({
-    type: z.enum(["card", "wallet", "bundle", "intent", "pack"]),
+    type: z.enum(["card"]),
     id: z.string().min(1)
   }),
-  card: CardSchema.optional(),
-  wallet: WalletSummarySchema.optional(),
-  bundle: BundleSchema.optional(),
+  card: CardSchema,
   scores: z.array(ScoreSchema),
   candidateActions: z.array(ActionRecommendationSchema),
   sources: z.array(SourceRefSchema),
   riskFlags: z.array(z.string().min(1)),
   freshness: z.array(FreshnessSchema),
-  mockData: z.boolean().default(false)
+  officialApi: z.literal(true).default(true)
 });
 
 export const AiMemoOutputSchema = z.object({

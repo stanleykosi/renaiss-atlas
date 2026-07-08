@@ -23,19 +23,11 @@ function chooseAction(input: AiMemoInput): { label: string; type: ActionType } {
     };
   }
 
-  if (input.riskFlags.includes("external_comp_mismatch")) {
-    return { label: "Review evidence", type: "WATCH" };
-  }
-
-  if (input.subject.type === "card") {
-    return { label: "Watch card", type: "WATCH" };
-  }
-
-  return { label: "Review sources", type: "WATCH" };
+  return { label: "Review sources", type: "REVIEW_SOURCES" };
 }
 
 export function createDeterministicCardMemo(input: AiMemoInput): AiMemoOutput {
-  const subjectLabel = input.card?.name ?? input.subject.id;
+  const subjectLabel = input.card.name;
   const sourceIds = primarySourceIds(input);
   const scoreEvidence = topScores(input.scores).map(formatScore);
   const action = chooseAction(input);
@@ -49,11 +41,7 @@ export function createDeterministicCardMemo(input: AiMemoInput): AiMemoOutput {
     .filter((freshness) => freshness.status !== "fresh")
     .map((freshness) => `${freshness.source} freshness is ${freshness.status}.`);
   const riskFlags = input.riskFlags.map((flag) => flag.replaceAll("_", " "));
-  const risks = [
-    ...(input.mockData ? ["Mock data is labeled and must be verified against live sources."] : []),
-    ...freshnessRisks,
-    ...riskFlags
-  ].slice(0, 6);
+  const risks = [...freshnessRisks, ...riskFlags].slice(0, 6);
 
   return {
     recommendation:
@@ -61,7 +49,7 @@ export function createDeterministicCardMemo(input: AiMemoInput): AiMemoOutput {
       `Monitor ${subjectLabel} until cited sources provide enough confidence for a stronger collector action.`,
     evidence: evidence.length > 0 ? evidence : ["Atlas has limited cited evidence for this card."],
     risks: risks.length > 0 ? risks : ["No major deterministic risk flags are present in the supplied evidence."],
-    confidence: input.mockData || input.riskFlags.includes("mock_data") ? "low" : "medium",
+    confidence: "medium",
     sourcesUsed: sourceIds,
     nextAction: action,
     disclaimer:

@@ -13,37 +13,32 @@ const observedAt = "2026-06-26T12:00:00.000Z";
 
 function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
   return {
-    subject: { type: "card", id: "demo-card-001" },
+    subject: { type: "card", id: "official-card-001" },
     card: {
-      tokenId: "demo-card-001",
-      itemId: "item-001",
+      tokenId: "official-card-001",
+      itemId: "/card/pokemon/test-set/001-pikachu-psa-10",
       name: "Pikachu PSA 10",
       normalizedName: "pikachu psa 10",
       setName: "Promo",
       cardNumber: "001",
       characterName: "Pikachu",
-      tcg: "Pokemon",
-      ownerAddress: "0x0000000000000000000000000000000000000001",
-      ownerUsername: "demo",
+      tcg: "pokemon",
       grader: "PSA",
-      grade: "10",
+      grade: "PSA 10",
       language: "English",
-      year: 2024,
-      serial: "12345678",
-      serialNum: 12345678n,
-      status: "listed",
+      status: "unknown",
       firstSeenAt: observedAt,
       lastSeenAt: observedAt
     },
     scores: [
       {
         entityType: "card",
-        entityId: "demo-card-001",
+        entityId: "official-card-001",
         scoreType: "liquidity",
         scoreValue: 82,
         confidence: "high",
         inputsHash: "score-hash",
-        reasons: ["Offer depth and listing health are strong."],
+        reasons: ["Official trades and source breadth support liquidity."],
         riskFlags: [],
         computedAt: observedAt
       }
@@ -51,33 +46,33 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
     candidateActions: [
       {
         subjectType: "card",
-        subjectId: "demo-card-001",
-        actionType: "WATCH",
+        subjectId: "official-card-001",
+        actionType: "REVIEW_SOURCES",
         priority: 1,
-        title: "Watch card",
-        reason: "Deterministic scores support monitoring the card before taking any collector action.",
+        title: "Review official evidence",
+        reason: "Use official confidence, source breakdown, trades, and FMV series before making collector decisions.",
         confidence: "medium",
         risks: [],
-        sourceIds: ["source:demo-card-001"]
+        sourceIds: ["renaiss-os:card:official-card-001"]
       }
     ],
     sources: [
       {
-        id: "source:demo-card-001",
-        source: "manual_seed",
+        id: "renaiss-os:card:official-card-001",
+        source: "renaiss_os_index",
         fetchedAt: observedAt,
-        confidence: "medium"
+        confidence: "high"
       },
       {
-        id: "score:demo-card-001:liquidity",
-        source: "manual_seed",
+        id: "renaiss-os:trades:official-card-001",
+        source: "renaiss_os_index",
         fetchedAt: observedAt,
         confidence: "high"
       }
     ],
     riskFlags: [],
-    freshness: [{ source: "manual_seed", observedAt, status: "fresh" }],
-    mockData: false,
+    freshness: [{ source: "renaiss_os_index", observedAt, status: "fresh" }],
+    officialApi: true,
     ...overrides
   };
 }
@@ -86,12 +81,12 @@ describe("AI memo safety", () => {
   it("rejects uncited sources from model output", () => {
     const result = validateAiMemoOutput(
       {
-        recommendation: "Watch the card while evidence develops.",
+        recommendation: "Review the card while evidence develops.",
         evidence: ["Liquidity score is strong."],
         risks: ["No major deterministic risk flags are present."],
         confidence: "medium",
         sourcesUsed: ["unknown-source"],
-        nextAction: { label: "Watch card", type: "WATCH" },
+        nextAction: { label: "Review sources", type: "REVIEW_SOURCES" },
         disclaimer: "Informational only; verify cited sources before acting."
       },
       memoInput()
@@ -108,8 +103,8 @@ describe("AI memo safety", () => {
         evidence: ["Liquidity score is strong."],
         risks: ["No major deterministic risk flags are present."],
         confidence: "high",
-        sourcesUsed: ["source:demo-card-001"],
-        nextAction: { label: "Watch card", type: "WATCH" },
+        sourcesUsed: ["renaiss-os:card:official-card-001"],
+        nextAction: { label: "Review sources", type: "REVIEW_SOURCES" },
         disclaimer: "Informational only; verify cited sources before acting."
       },
       memoInput()
@@ -119,12 +114,12 @@ describe("AI memo safety", () => {
     expect(result.issues.join(",")).toContain("prohibited_phrases");
   });
 
-  it("caps confidence for mock data", () => {
+  it("caps confidence for sparse official evidence", () => {
     expect(
       confidenceCapForInput(
         memoInput({
-          mockData: true,
-          riskFlags: ["mock_data"]
+          sources: [],
+          riskFlags: ["official_observations_missing"]
         })
       )
     ).toBe("low");
@@ -140,8 +135,8 @@ describe("AI memo safety", () => {
           evidence: ["Liquidity score is strong."],
           risks: ["No risk."],
           confidence: "high",
-          sourcesUsed: ["source:demo-card-001"],
-          nextAction: { label: "Watch card", type: "WATCH" },
+          sourcesUsed: ["renaiss-os:card:official-card-001"],
+          nextAction: { label: "Review sources", type: "REVIEW_SOURCES" },
           disclaimer: "Informational only; verify cited sources before acting."
         };
       }
@@ -154,11 +149,11 @@ describe("AI memo safety", () => {
 
     expect(result.validationStatus).toBe("fallback");
     expect(result.provider).toBe("deterministic");
-    expect(result.output.sourcesUsed).toContain("source:demo-card-001");
+    expect(result.output.sourcesUsed).toContain("renaiss-os:card:official-card-001");
     expect(result.safetyIssues.join(",")).toContain("prohibited_phrases");
   });
 
-  it("hashes bigint serial evidence deterministically", () => {
+  it("hashes official memo evidence deterministically", () => {
     expect(hashAiMemoInput(memoInput())).toHaveLength(64);
     expect(hashAiMemoInput(memoInput())).toBe(hashAiMemoInput(memoInput()));
   });

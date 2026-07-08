@@ -1,20 +1,37 @@
 # Renaiss Atlas
 
-Renaiss Atlas is a production-ready liquidity oracle and AI collector copilot for the Renaiss marketplace. It turns marketplace, pack, wallet, external comp, serial, bundle, and collector-intent signals into source-aware next actions.
+Renaiss Atlas is a read-only liquidity intelligence and AI collector-copilot layer built around the official Renaiss OS Index API.
 
-Atlas is read-only. It does not collect private keys or seed phrases, request token approvals, execute trades, custody assets, or ask wallets to sign.
+Atlas does not collect private keys or seed phrases, request token approvals, execute trades, custody assets, or ask wallets to sign.
 
-## What Is Included
+## Current Product Surface
 
-- `pnpm` + Turborepo TypeScript monorepo.
-- `apps/web` Next.js App Router app with Tailwind, shadcn-style primitives, market/card/wallet/intent/bundle/pack/admin views, and route handlers.
-- `apps/api` Hono health service.
-- `apps/worker` sync, scoring, bundle, and external comp jobs with Postgres job locks.
-- `apps/discord` signed Discord interaction endpoint and `/atlas` command registration.
-- `packages/core` Zod schemas, deterministic scoring, matching, bundle detection, and utilities.
-- `packages/db` Postgres + Drizzle schema, migrations, repositories, and labeled local seed fixtures.
-- `packages/connectors` Renaiss, gacha, SNKRDUNK, PriceCharting, exchange, queue, retry, and persistence modules.
-- `packages/ai` provider abstraction, schema validation, confidence caps, safety validation, and deterministic fallback.
+- `apps/web` Next.js App Router app.
+- `apps/web/app/v1/[...path]/route.ts` backend proxy for the official Renaiss OS Index API.
+- `apps/web/app/api/discord/interactions/route.ts` signed Discord interactions endpoint.
+- `packages/core` official scoring, source/freshness schemas, safety constants, and utilities.
+- `packages/ai` schema-validated OpenRouter memo provider with deterministic fallback.
+- Discord is supported as a Vercel-hosted interactions webhook, not a long-running gateway worker.
+
+The final demo path is:
+
+```text
+Market Pulse -> Search Card -> Card Intelligence -> Graded Cert Lookup -> AI Deal Memo
+```
+
+## Official API
+
+Atlas uses only:
+
+```bash
+RENAISS_OS_BASE_URL=https://api.renaissos.com
+RENAISS_OS_API_KEY=
+RENAISS_OS_API_SECRET=
+```
+
+`RENAISS_OS_API_KEY` and `RENAISS_OS_API_SECRET` are read only by server-side code and are never exposed to client components.
+
+The checked-in official API spec is `OPENAPI.json`.
 
 ## Local Setup
 
@@ -26,7 +43,7 @@ pnpm test
 pnpm dev
 ```
 
-The web app runs at `http://localhost:3000`. Live mode is the default; configure `DATABASE_URL` and Redis before using writable endpoints.
+The web app runs at `http://localhost:3000`.
 
 ## Required Commands
 
@@ -39,43 +56,29 @@ pnpm test
 pnpm test:e2e
 pnpm security:scan
 pnpm verify:vercel-env
-pnpm db:generate
-pnpm db:migrate
-pnpm db:seed
-pnpm jobs:sync:renaiss
-pnpm jobs:sync:gacha
-pnpm jobs:sync:external
-pnpm jobs:score
-pnpm jobs:bundles
-pnpm jobs:intents
-pnpm discord:register
+pnpm screenshots
 ```
 
-## Live Data Mode
+## Vercel Environment
 
-Production deploys use live Postgres data by default and do not fall back to fixtures. For local screenshots or tests only, opt into labeled seed fixtures:
+Required:
 
 ```bash
-ALLOW_SEED_DATA=true
+NEXT_PUBLIC_APP_URL=https://your-atlas-domain.example
+RENAISS_OS_BASE_URL=https://api.renaissos.com
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-Do not set `ALLOW_SEED_DATA=true` on Vercel or Railway production. Fixture data remains explicitly labeled in UI and API responses when enabled locally.
-
-## Health And Admin
-
-- `/api/health/live` liveness check.
-- `/api/health/ready` readiness check for database, Redis, Sentry, and freshness.
-- `/api/health` full JSON health report.
-- `/admin/sync` operator dashboard for sync runs, job locks, and data-quality warnings.
-- `/api/admin/sync/jobs` accepts authenticated manual sync requests with `Authorization: Bearer $JOB_SECRET`.
-
-Worker jobs use the existing `job_locks` table. Stale locks expire after `JOB_LOCK_TTL_SECONDS`.
-
-## Observability
-
-Sentry is configured through `@sentry/nextjs` with App Router instrumentation. Set:
+Recommended for higher API limits and production observability:
 
 ```bash
+RENAISS_OS_API_KEY=
+RENAISS_OS_API_SECRET=
+DISCORD_PUBLIC_KEY=
+DISCORD_APPLICATION_ID=
+DISCORD_BOT_TOKEN=
+DISCORD_GUILD_ID=
 SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
 SENTRY_ORG=
@@ -84,26 +87,38 @@ SENTRY_AUTH_TOKEN=
 SENTRY_ENVIRONMENT=production
 ```
 
-Logs are structured JSON in server output and forwarded through Sentry logging when the SDK is configured.
-
-## Security
-
-Run:
+Add these on Vercel when you want live AI memos instead of the deterministic fallback:
 
 ```bash
-pnpm security:scan
+AI_ENABLED=true
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=
 ```
 
-The scan checks source/config files for committed private keys, provider tokens, wallet private key env values, and prohibited approval/trade execution calls. Run it before deployments alongside lint/typecheck/tests/build/E2E.
+The current production app is designed to run entirely on Vercel. Railway is not required unless Atlas later adds a long-running worker, database indexer, Discord gateway process, or other always-on service.
+
+Discord interactions URL:
+
+```text
+https://your-atlas-domain.example/api/discord/interactions
+```
+
+Supported Discord commands: `/atlas market`, `/atlas card`, `/atlas graded`, and `/atlas sources`.
+
+Register commands with:
+
+```bash
+pnpm discord:register
+```
+
+## Safety
+
+- Read-only API consumption only.
+- No private keys, seed phrases, token approvals, custody, lending execution, or trade execution.
+- Deterministic scoring runs before AI.
+- AI output is Zod-validated, source-cited, confidence-capped, and falls back deterministically.
+- Scores and memos use official Renaiss OS confidence, source counts, observation counts, last sale timestamps, trades, FMV series, and source breakdown.
 
 ## Deployment
 
-See [docs/deployment.md](docs/deployment.md) for environment variables, health checks, Vercel/Railway deployment notes, job scheduling, Sentry setup, and screenshot capture.
-
-## Screenshots
-
-Local E2E captures seed-fixture screenshots into [docs/screenshots](docs/screenshots):
-
-- `market.png`
-- `card-detail.png`
-- `admin-sync.png`
+See [docs/deployment.md](docs/deployment.md).

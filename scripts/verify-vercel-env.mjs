@@ -44,41 +44,22 @@ function warnValue(name) {
   if (!hasValue(name)) warnings.push(name);
 }
 
-function hasRedisPair() {
-  return (
-    (hasValue("INTENT_RATE_LIMIT_REDIS_REST_URL") && hasValue("INTENT_RATE_LIMIT_REDIS_REST_TOKEN")) ||
-    (hasValue("UPSTASH_REDIS_REST_URL") && hasValue("UPSTASH_REDIS_REST_TOKEN"))
-  );
-}
-
 requireValue("NEXT_PUBLIC_APP_URL");
-requireValue("DATABASE_URL");
-requireValue("JOB_SECRET");
+requireValue("RENAISS_OS_BASE_URL");
+requireValue("UPSTASH_REDIS_REST_URL");
+requireValue("UPSTASH_REDIS_REST_TOKEN");
 
-if (!hasRedisPair()) {
-  missing.push("UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN");
-}
-
-if (process.env.ALLOW_SEED_DATA === "true") {
-  missing.push("ALLOW_SEED_DATA must be unset or false for Vercel live deploys");
-}
-
+warnValue("RENAISS_OS_API_KEY");
+warnValue("RENAISS_OS_API_SECRET");
+warnValue("DISCORD_PUBLIC_KEY");
+warnValue("DISCORD_APPLICATION_ID");
+warnValue("DISCORD_BOT_TOKEN");
 warnValue("SENTRY_DSN");
 warnValue("NEXT_PUBLIC_SENTRY_DSN");
 
 if (process.env.AI_ENABLED === "true") {
-  const hasOpenAi = hasValue("OPENAI_API_KEY");
-  const hasGemini = hasValue("GEMINI_API_KEY");
-  const hasMimo = hasValue("MIMO_API_KEY");
-  if (!hasOpenAi && !hasGemini && !hasMimo) {
-    missing.push("OPENAI_API_KEY or GEMINI_API_KEY or MIMO_API_KEY when AI_ENABLED=true");
-  }
-}
-
-if (process.env.DISCORD_ENABLED === "true") {
-  requireValue("DISCORD_APPLICATION_ID");
-  requireValue("DISCORD_PUBLIC_KEY");
-  requireValue("DISCORD_BOT_TOKEN");
+  requireValue("OPENROUTER_API_KEY");
+  requireValue("OPENROUTER_MODEL");
 }
 
 for (const name of warnings) {
@@ -86,11 +67,11 @@ for (const name of warnings) {
 }
 
 if (missing.length > 0) {
-  console.error("[verify-vercel-env] Vercel deploy is missing required live environment:");
+  console.error("[verify-vercel-env] Vercel deploy is missing required environment:");
   for (const name of missing) {
     console.error(`- ${name}`);
   }
   process.exit(1);
 }
 
-console.log("[verify-vercel-env] Required Vercel live environment is present.");
+console.log("[verify-vercel-env] Required Vercel environment is present.");

@@ -3,46 +3,30 @@ import { describe, expect, it } from "vitest";
 import { parseRuntimeEnv } from "../src/env.js";
 
 describe("parseRuntimeEnv", () => {
-  it("accepts the required runtime environment contract", () => {
+  it("accepts the official API runtime environment contract", () => {
     const env = parseRuntimeEnv({
-      DATABASE_URL: "postgres://atlas:atlas@localhost:5432/atlas",
       NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-      JOB_SECRET: "replace-with-strong-random-value",
-      RENAISS_V0_MARKETPLACE_URL: "https://api.renaiss.xyz/v0/marketplace",
-      RENAISS_TRPC_MARKETPLACE_URL: "https://www.renaiss.xyz/api/trpc/collectible.list",
-      GACHA_SYNC_ENABLED: "true",
-      EXTERNAL_COMPS_ENABLED: "true",
-      EXTERNAL_COMPS_LIVE_ENABLED: "false",
+      RENAISS_OS_BASE_URL: "https://api.renaissos.com",
+      RENAISS_OS_API_KEY: "test-key",
+      RENAISS_OS_API_SECRET: "test-secret",
       UPSTASH_REDIS_REST_URL: "https://redis.example.com",
       UPSTASH_REDIS_REST_TOKEN: "redis-token",
-      AI_ENABLED: "false",
-      DISCORD_ENABLED: "false",
-      ALLOW_SEED_DATA: "false"
+      AI_ENABLED: "false"
     });
 
-    expect(env.RENAISS_MARKETPLACE_STRATEGY).toBe("auto");
+    expect(env.RENAISS_OS_BASE_URL).toBe("https://api.renaissos.com");
     expect(env.UPSTASH_REDIS_REST_URL).toBe("https://redis.example.com");
     expect(env.AI_ENABLED).toBe(false);
-    expect(env.AI_PROVIDER).toBe("auto");
-    expect(env.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
-    expect(env.MIMO_MODEL).toBe("mimo-v2.5");
-    expect(env.GACHA_PACKS).toBe("renacrypt-pack,omega");
-    expect(env.JOB_LOCK_TTL_SECONDS).toBe(900);
-    expect(env.GACHA_RSC_BASE_URL).toBe("https://www.renaiss.xyz/gacha");
-    expect(env.EXTERNAL_COMP_SOURCES).toBe("snkrdunk,pricecharting");
-    expect(env.EXTERNAL_COMPS_LIVE_ENABLED).toBe(false);
-    expect(env.JINA_READER_BASE_URL).toBe("https://r.jina.ai/");
-    expect(env.ALLOW_SEED_DATA).toBe(false);
+    expect(env.OPENROUTER_API_KEY).toBeUndefined();
+    expect(env.OPENROUTER_MODEL).toBeUndefined();
   });
 
-  it("rejects missing secrets instead of falling back silently", () => {
+  it("rejects missing official API deployment requirements", () => {
     expect(() =>
       parseRuntimeEnv({
-        DATABASE_URL: "",
         NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-        JOB_SECRET: "short",
-        RENAISS_V0_MARKETPLACE_URL: "https://api.renaiss.xyz/v0/marketplace",
-        RENAISS_TRPC_MARKETPLACE_URL: "https://www.renaiss.xyz/api/trpc/collectible.list"
+        RENAISS_OS_BASE_URL: "https://api.renaissos.com",
+        AI_ENABLED: "false"
       })
     ).toThrow();
   });

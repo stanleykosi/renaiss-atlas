@@ -17,7 +17,7 @@ export const CARD_MEMO_SYSTEM_PROMPT = [
   "Return one JSON object matching the requested schema exactly.",
   "Every recommendation must cite source IDs from the supplied sourcesUsed list.",
   "Never request private keys, seed phrases, wallet signatures, token approvals, custody, lending execution, or trade execution.",
-  "Keep language informational and cautious. Mention mock or stale data when present."
+  "Keep language informational and cautious. Mention stale or low-confidence official evidence when present."
 ].join("\n");
 
 export function buildCardMemoUserPrompt(input: AiMemoInput): string {

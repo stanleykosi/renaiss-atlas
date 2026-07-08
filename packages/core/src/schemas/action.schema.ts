@@ -3,18 +3,13 @@ import { z } from "zod";
 import { ConfidenceLabelSchema } from "../constants/confidence.js";
 
 export const ActionTypeSchema = z.enum([
-  "LIST",
-  "MAKE_OFFER",
-  "BUNDLE",
   "WATCH",
-  "AVOID",
-  "CREATE_INTENT",
-  "MATCH_INTENT",
-  "QUEST",
-  "SHARE"
+  "REVIEW_SOURCES",
+  "CHECK_CERT",
+  "OPEN_RENAISS"
 ]);
 
-export const ActionSubjectTypeSchema = z.enum(["card", "wallet", "bundle", "intent", "pack"]);
+export const ActionSubjectTypeSchema = z.enum(["card"]);
 
 export const ActionCtaSchema = z.object({
   label: z.string().min(1).max(80),
@@ -39,4 +34,3 @@ export type ActionType = z.infer<typeof ActionTypeSchema>;
 export type ActionSubjectType = z.infer<typeof ActionSubjectTypeSchema>;
 export type ActionCta = z.infer<typeof ActionCtaSchema>;
 export type ActionRecommendation = z.infer<typeof ActionRecommendationSchema>;
-
