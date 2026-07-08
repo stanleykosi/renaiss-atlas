@@ -22,12 +22,12 @@ describe("database schema", () => {
     expect(cards.tokenId.name).toBe("token_id");
   });
 
-  it("exports demo seed cards with mock-data labels", () => {
+  it("exports local seed cards with mock-data labels", () => {
     expect(demoCards).toHaveLength(7);
     expect(demoCards.every((card) => card.metadata != null)).toBe(true);
   });
 
-  it("covers required demo seed scenarios", () => {
+  it("covers required local seed scenarios", () => {
     expect(demoPackActivities.map((activity) => activity.packSlug).sort()).toEqual([
       "omega",
       "renacrypt-pack"

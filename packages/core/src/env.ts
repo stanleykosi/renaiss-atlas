@@ -65,14 +65,7 @@ export const RuntimeEnvSchema = z.object({
   SENTRY_PROJECT: z.string().optional(),
   SENTRY_AUTH_TOKEN: z.string().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),
-  DEMO_MODE: z.preprocess(
-    (value) => (value === undefined ? "true" : value),
-    z.enum(["true", "false"]).transform((value) => value === "true")
-  ),
-  MOCK_EXTERNAL_COMPS: z.preprocess(
-    (value) => (value === undefined ? "true" : value),
-    z.enum(["true", "false"]).transform((value) => value === "true")
-  )
+  ALLOW_SEED_DATA: booleanFlag
 });
 
 export type RuntimeEnv = z.infer<typeof RuntimeEnvSchema>;

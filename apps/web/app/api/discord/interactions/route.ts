@@ -17,6 +17,7 @@ import {
 } from "@renaiss/db";
 
 import { getBundleOverview } from "@/lib/bundle-data";
+import { allowSeedData } from "@/lib/data-mode";
 import { getIntentBoard } from "@/lib/intent-data";
 import { getCardDetail, getMarketOverview } from "@/lib/market-data";
 import { getPackMomentumOverview } from "@/lib/pack-data";
@@ -49,7 +50,7 @@ async function recordDiscordEvent(input: {
   response: DiscordInteractionResponse;
 }) {
   const env = DatabaseEnvSchema.safeParse(process.env);
-  if (!env.success || process.env["DEMO_MODE"] !== "false") return;
+  if (!env.success || allowSeedData()) return;
 
   const database = createDbClient(env.data.DATABASE_URL, {
     databaseSsl: env.data.DATABASE_SSL,

@@ -7,4 +7,4 @@ const logger = pino({ name: "renaiss-atlas-api" });
 const port = Number.parseInt(process.env["API_PORT"] ?? "3001", 10);
 
 serve({ fetch: app.fetch, port });
-logger.info({ port }, "api scaffold listening");
+logger.info({ port }, "api listening");

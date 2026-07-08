@@ -8,11 +8,11 @@ Atlas is read-only. It does not collect private keys or seed phrases, request to
 
 - `pnpm` + Turborepo TypeScript monorepo.
 - `apps/web` Next.js App Router app with Tailwind, shadcn-style primitives, market/card/wallet/intent/bundle/pack/admin views, and route handlers.
-- `apps/api` Hono health scaffold.
+- `apps/api` Hono health service.
 - `apps/worker` sync, scoring, bundle, and external comp jobs with Postgres job locks.
 - `apps/discord` signed Discord interaction endpoint and `/atlas` command registration.
 - `packages/core` Zod schemas, deterministic scoring, matching, bundle detection, and utilities.
-- `packages/db` Postgres + Drizzle schema, migrations, repositories, and labeled demo seed fixtures.
+- `packages/db` Postgres + Drizzle schema, migrations, repositories, and labeled local seed fixtures.
 - `packages/connectors` Renaiss, gacha, SNKRDUNK, PriceCharting, exchange, queue, retry, and persistence modules.
 - `packages/ai` provider abstraction, schema validation, confidence caps, safety validation, and deterministic fallback.
 
@@ -26,7 +26,7 @@ pnpm test
 pnpm dev
 ```
 
-The web app runs at `http://localhost:3000`. `DEMO_MODE=true` uses labeled seed data and does not require live connectors.
+The web app runs at `http://localhost:3000`. Live mode is the default; configure `DATABASE_URL` and Redis before using writable endpoints.
 
 ## Required Commands
 
@@ -38,6 +38,7 @@ pnpm typecheck
 pnpm test
 pnpm test:e2e
 pnpm security:scan
+pnpm verify:vercel-env
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -50,18 +51,15 @@ pnpm jobs:intents
 pnpm discord:register
 ```
 
-## Demo Seed Mode
+## Live Data Mode
 
-Seed mode is the default:
+Production deploys use live Postgres data by default and do not fall back to fixtures. For local screenshots or tests only, opt into labeled seed fixtures:
 
 ```bash
-DEMO_MODE=true
-MOCK_EXTERNAL_COMPS=true
+ALLOW_SEED_DATA=true
 ```
 
-It provides seven wallet cards, active intents, external comp mismatch evidence, sequential and same-character bundles, pack activities for RenaCrypt and OMEGA, scores, actions, an AI memo, and a quest. Demo data is explicitly labeled in UI and API responses.
-
-Use `DEMO_MODE=false` only when `DATABASE_URL`, Redis REST rate limiting, and production secrets are configured.
+Do not set `ALLOW_SEED_DATA=true` on Vercel or Railway production. Fixture data remains explicitly labeled in UI and API responses when enabled locally.
 
 ## Health And Admin
 
@@ -104,7 +102,7 @@ See [docs/deployment.md](docs/deployment.md) for environment variables, health c
 
 ## Screenshots
 
-Local E2E captures demo screenshots into [docs/screenshots](docs/screenshots):
+Local E2E captures seed-fixture screenshots into [docs/screenshots](docs/screenshots):
 
 - `market.png`
 - `card-detail.png`

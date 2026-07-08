@@ -11,6 +11,7 @@ import {
 import { getMarketOverview } from "@/lib/market-data";
 import type { BundleOverview, BundleView } from "@/lib/bundle-types";
 import type { DataSourceMode, MarketCard } from "@/lib/market-types";
+import { allowSeedData } from "./data-mode";
 
 function toNumber(value: unknown): number | null {
   if (value == null) return null;
@@ -22,12 +23,8 @@ function bundleLabel(bundleType: string) {
   return bundleType.replaceAll("_", " ");
 }
 
-function shouldUseSeedData(): boolean {
-  return process.env["DEMO_MODE"] !== "false" || process.env["DATABASE_URL"] == null;
-}
-
 async function readIntentEvidence(sourceMode: DataSourceMode) {
-  if (sourceMode === "seed" || shouldUseSeedData()) {
+  if (sourceMode === "seed" || allowSeedData()) {
     return {
       intents: demoIntents.map((intent): BundleDetectionIntentInput => ({
         id: intent.id,

@@ -204,7 +204,7 @@ function WalletMessage({
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/wallet/0x1111111111111111111111111111111111111111" className={cn(buttonVariants())}>
-            Open demo wallet
+            Open sample wallet
           </Link>
           <Link href="/market" className={cn(buttonVariants({ variant: "secondary" }))}>
             Market

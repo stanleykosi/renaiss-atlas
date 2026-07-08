@@ -2,6 +2,7 @@ import { createDbClient, DatabaseEnvSchema } from "@renaiss/db";
 
 import { getAdminSyncOverview } from "@/lib/admin-sync-data";
 import { logError } from "@/lib/logger";
+import { allowSeedData } from "./data-mode";
 
 export type HealthCheckStatus = "pass" | "warn" | "fail" | "skip";
 
@@ -40,13 +41,13 @@ function check(name: string, status: HealthCheckStatus, message: string, observe
 }
 
 async function databaseCheck(now: string): Promise<HealthCheck> {
-  if (process.env["DEMO_MODE"] !== "false") {
-    return check("database", "skip", "Demo seed mode does not require a database connection.", now);
+  if (allowSeedData()) {
+    return check("database", "skip", "Local seed fixture mode does not require a database connection.", now);
   }
 
   const env = DatabaseEnvSchema.safeParse(process.env);
   if (!env.success) {
-    return check("database", "fail", "DATABASE_URL is required when DEMO_MODE=false.", now);
+    return check("database", "fail", "DATABASE_URL is required for live Atlas deployment.", now);
   }
 
   const database = createDbClient(env.data.DATABASE_URL, {
@@ -70,6 +71,7 @@ async function databaseCheck(now: string): Promise<HealthCheck> {
 export async function getHealthReport(): Promise<HealthReport> {
   const now = new Date().toISOString();
   const [database, admin] = await Promise.all([databaseCheck(now), getAdminSyncOverview()]);
+  const seedDataAllowed = allowSeedData();
   const checks: HealthCheck[] = [
     check("runtime", "pass", "Next.js route handlers are responding.", now),
     database,
@@ -77,12 +79,14 @@ export async function getHealthReport(): Promise<HealthReport> {
       "redis-rate-limit",
       hasValue(process.env["INTENT_RATE_LIMIT_REDIS_REST_URL"]) || hasValue(process.env["UPSTASH_REDIS_REST_URL"])
         ? "pass"
-        : process.env["DEMO_MODE"] === "false"
-          ? "fail"
-          : "warn",
+        : seedDataAllowed
+          ? "warn"
+          : "fail",
       hasValue(process.env["INTENT_RATE_LIMIT_REDIS_REST_URL"]) || hasValue(process.env["UPSTASH_REDIS_REST_URL"])
         ? "Redis REST limiter is configured."
-        : "Redis REST limiter is not configured; demo mode allows local previews.",
+        : seedDataAllowed
+          ? "Redis REST limiter is not configured; seed fixtures are local-only."
+          : "Redis REST limiter is required for live intent and admin writes.",
       now
     ),
     check(

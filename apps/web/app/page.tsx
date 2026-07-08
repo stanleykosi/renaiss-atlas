@@ -36,7 +36,7 @@ export default function HomePage() {
         <div>
           <p className="mb-4 inline-flex items-center gap-2 rounded-md border px-3 py-1 text-sm text-muted-foreground">
             <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-            Read-only scaffold
+            Read-only intelligence
           </p>
           <h1 className="max-w-3xl text-5xl font-semibold text-balance md:text-7xl">
             Renaiss Atlas
@@ -60,7 +60,7 @@ export default function HomePage() {
           <StatusTile
             icon={<Database className="h-5 w-5" aria-hidden="true" />}
             label="Postgres + Drizzle"
-            value="schema scaffold"
+            value="source-aware"
           />
           <StatusTile
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}

@@ -27,6 +27,7 @@
     "jobs:intents": "pnpm --filter @renaiss/worker jobs:intents",
     "discord:register": "pnpm --filter @renaiss/discord discord:register",
     "security:scan": "node scripts/security-scan.mjs",
+    "verify:vercel-env": "ATLAS_VERIFY_ENV=true node scripts/verify-vercel-env.mjs",
     "screenshots": "CAPTURE_SCREENSHOTS=true playwright test --config playwright.config.ts apps/web/tests/screenshots.spec.ts",
     "format": "prettier --write ."
   },

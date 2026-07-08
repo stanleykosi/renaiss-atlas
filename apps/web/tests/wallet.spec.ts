@@ -20,6 +20,6 @@ test("shows a friendly invalid wallet state", async ({ page }) => {
   await page.goto("/wallet/not-an-address", { waitUntil: "domcontentloaded" });
 
   await expect(page.getByRole("heading", { name: "Invalid wallet address" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open demo wallet" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open sample wallet" })).toBeVisible();
   await expect(page.getByText(/do not request signatures/i)).toBeVisible();
 });

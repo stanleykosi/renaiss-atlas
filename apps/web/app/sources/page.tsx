@@ -5,7 +5,7 @@ export default function SourcesPage() {
     <SurfacePlaceholder
       eyebrow="Sources"
       title="Data Sources and Safety"
-      emptyState="Source records, freshness labels, and confidence labels are part of the scaffold and will back every connector."
+      emptyState="Live source records, freshness labels, confidence labels, and data-quality warnings appear here after sync jobs run."
     />
   );
 }

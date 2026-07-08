@@ -39,11 +39,11 @@ export function SurfacePlaceholder({ title, eyebrow, emptyState }: SurfacePlaceh
         <footer className="mt-6 grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
           <div className="flex items-center gap-2 rounded-md border px-3 py-2">
             <Database className="h-4 w-4 text-primary" aria-hidden="true" />
-            Source: scaffold only
+            Source: live sync required
           </div>
           <div className="flex items-center gap-2 rounded-md border px-3 py-2">
             <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
-            Freshness: missing until seed/live sync is implemented
+            Freshness: missing until sync jobs publish evidence
           </div>
         </footer>
       </div>

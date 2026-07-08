@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
+import { allowSeedData } from "./data-mode";
+
 const INTENT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const INTENT_RATE_LIMIT_MAX_WRITES = 5;
 const ADMIN_SYNC_RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -22,7 +24,7 @@ const RedisRateLimitEnvSchema = z.object({
   INTENT_RATE_LIMIT_REDIS_REST_TOKEN: EmptyToUndefined,
   UPSTASH_REDIS_REST_URL: OptionalUrl,
   UPSTASH_REDIS_REST_TOKEN: EmptyToUndefined,
-  DEMO_MODE: z.enum(["true", "false"]).optional()
+  ALLOW_SEED_DATA: z.enum(["true", "false"]).optional()
 });
 
 const RedisRestResponseSchema = z
@@ -59,7 +61,7 @@ export type FixedWindowRateLimitResult =
       status: "allowed";
       remaining: number;
       resetAt: number;
-      source: "redis" | "demo";
+      source: "redis" | "seed";
     }
   | {
       status: "limited";
@@ -88,10 +90,6 @@ function redisConfigFromEnv(input: Record<string, string | undefined>): RedisRat
     url: url.replace(/\/+$/, ""),
     token
   };
-}
-
-function isDemoMode(input: Record<string, string | undefined>): boolean {
-  return input["DEMO_MODE"] !== "false";
 }
 
 function hashIdentifier(identifier: string): string {
@@ -157,12 +155,12 @@ export async function checkFixedWindowRateLimit({
   const config = redisConfigFromEnv(env);
 
   if (config == null) {
-    if (isDemoMode(env)) {
+    if (allowSeedData(env)) {
       return {
         status: "allowed",
         remaining: max,
         resetAt: now + windowMs,
-        source: "demo"
+        source: "seed"
       };
     }
 

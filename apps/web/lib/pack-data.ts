@@ -7,6 +7,7 @@ import {
 
 import type { DataSourceMode, FreshnessStatus } from "@/lib/market-types";
 import type { PackMomentum, PackMomentumOverview, PackObservedIntervals, PackRecentPull } from "@/lib/pack-types";
+import { allowSeedData } from "./data-mode";
 
 const PACK_STALE_AFTER_MS = 1000 * 60 * 60 * 24 * 2;
 const NOT_OFFICIAL_ODDS_DISCLAIMER =
@@ -23,10 +24,6 @@ type PackActivityRow = {
   pulledAt?: Date | string | null;
   metadata?: unknown;
 };
-
-function shouldUseSeedData(): boolean {
-  return process.env["DEMO_MODE"] !== "false" || process.env["DATABASE_URL"] == null;
-}
 
 function toIso(value: Date | string | null | undefined): string | null {
   if (value == null) return null;
@@ -230,7 +227,7 @@ async function readDbRows(): Promise<PackActivityRow[] | null> {
 export async function getPackMomentumOverview(): Promise<PackMomentumOverview> {
   const now = new Date();
 
-  if (shouldUseSeedData()) {
+  if (allowSeedData()) {
     return buildOverview({
       rows: demoPackActivities,
       sourceMode: "seed",
@@ -239,16 +236,8 @@ export async function getPackMomentumOverview(): Promise<PackMomentumOverview> {
   }
 
   const rows = await readDbRows();
-  if (rows == null || rows.length === 0) {
-    return buildOverview({
-      rows: demoPackActivities,
-      sourceMode: "seed",
-      now
-    });
-  }
-
   return buildOverview({
-    rows,
+    rows: rows ?? [],
     sourceMode: "database",
     now
   });

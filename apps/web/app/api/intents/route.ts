@@ -106,6 +106,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Intent text looks spammy. Please make it specific and source-safe." }, { status: 400 });
   }
 
-  const result = await createIntentWithMatches(parsed.data);
-  return NextResponse.json(result, { status: 201 });
+  try {
+    const result = await createIntentWithMatches(parsed.data);
+    return NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Intent creation is unavailable in live mode."
+      },
+      { status: 503 }
+    );
+  }
 }

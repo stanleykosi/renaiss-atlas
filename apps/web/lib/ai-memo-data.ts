@@ -15,13 +15,10 @@ import {
 
 import { getCardDetail } from "@/lib/market-data";
 import type { CardDetailResponse, ConfidenceLabel, MarketCard, MarketExternalComp } from "@/lib/market-types";
+import { allowSeedData } from "./data-mode";
 
 type AiMemoCard = NonNullable<AiMemoInput["card"]>;
 type StoredAiMemoRow = Awaited<ReturnType<ReturnType<typeof createAiMemosRepo>["latestForSubject"]>>;
-
-function shouldUseSeedData(): boolean {
-  return process.env["DEMO_MODE"] !== "false" || process.env["DATABASE_URL"] == null;
-}
 
 function toIso(value: Date | string | null | undefined): string | null {
   if (value == null) return null;
@@ -300,7 +297,7 @@ function storedRowToMemo(row: NonNullable<StoredAiMemoRow>): AiCardMemoResult | 
 }
 
 async function readStoredCardMemo(subjectId: string, inputHash: string): Promise<AiCardMemoResult | null> {
-  if (shouldUseSeedData()) return null;
+  if (allowSeedData()) return null;
 
   const env = DatabaseEnvSchema.safeParse(process.env);
   if (!env.success) return null;
@@ -323,7 +320,7 @@ async function readStoredCardMemo(subjectId: string, inputHash: string): Promise
 }
 
 async function persistCardMemo(result: AiCardMemoResult, mockData: boolean): Promise<void> {
-  if (shouldUseSeedData()) return;
+  if (allowSeedData()) return;
 
   const env = DatabaseEnvSchema.safeParse(process.env);
   if (!env.success) return;

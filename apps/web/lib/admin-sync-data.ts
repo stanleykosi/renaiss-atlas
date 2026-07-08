@@ -10,6 +10,7 @@ import {
 import { getIntentBoard } from "@/lib/intent-data";
 import { getMarketOverview, getSyncStatus } from "@/lib/market-data";
 import { getPackMomentumOverview } from "@/lib/pack-data";
+import { allowSeedData } from "./data-mode";
 
 export const adminSyncJobs = [
   {
@@ -96,10 +97,6 @@ export type AdminSyncOverview = {
   warnings: AdminSyncWarning[];
 };
 
-function shouldUseSeedData(): boolean {
-  return process.env["DEMO_MODE"] !== "false" || process.env["DATABASE_URL"] == null;
-}
-
 function toIso(value: Date | string | null | undefined): string | null {
   if (value == null) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -127,10 +124,10 @@ function syntheticWarnings(input: {
 
   if (input.market.health.mockData) {
     warnings.push({
-      id: "demo-seed-mode",
+      id: "mock-data-present",
       severity: "info",
-      code: "demo_seed_mode",
-      message: "Demo seed mode is active; all mock data remains explicitly labeled.",
+      code: "mock_data_present",
+      message: "Mock-labeled fixture rows are present; keep them labeled or remove them before judging live liquidity.",
       source: "manual_seed",
       entity: null,
       createdAt: now
@@ -181,7 +178,7 @@ async function readOperationalRows(): Promise<{
   jobLocks: JobLockRow[];
   warnings: AdminSyncWarning[];
 } | null> {
-  if (shouldUseSeedData()) return null;
+  if (allowSeedData()) return null;
 
   const env = DatabaseEnvSchema.safeParse(process.env);
   if (!env.success) return null;

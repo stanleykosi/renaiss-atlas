@@ -21,6 +21,7 @@ import {
 import { getMarketOverview } from "@/lib/market-data";
 import type { ConfidenceLabel, DataSourceMode, MarketCard } from "@/lib/market-types";
 import type { CreateIntentResponse, IntentBoardOverview, IntentMatchView, IntentView } from "@/lib/intent-types";
+import { allowSeedData } from "./data-mode";
 
 type IntentRow = {
   id: string;
@@ -57,10 +58,6 @@ type StoredIntentMatchRow = {
   reasons?: unknown;
   createdAt?: Date | string | null;
 };
-
-function shouldUseSeedData(): boolean {
-  return process.env["DEMO_MODE"] !== "false" || process.env["DATABASE_URL"] == null;
-}
 
 function toIso(value: Date | string | null | undefined): string {
   if (value == null) return new Date().toISOString();
@@ -287,7 +284,7 @@ async function readStoredIntentRows(): Promise<{
   matches: StoredIntentMatchRow[];
   sourceMode: DataSourceMode;
 } | null> {
-  if (shouldUseSeedData()) {
+  if (allowSeedData()) {
     return {
       intents: demoIntents,
       matches: demoIntentMatches,
@@ -389,8 +386,8 @@ function buildIntentBoard(input: {
 export async function getIntentBoard(): Promise<IntentBoardOverview> {
   const [market, stored] = await Promise.all([getMarketOverview(), readStoredIntentRows()]);
   const intentRows = stored ?? {
-    intents: demoIntents,
-    matches: demoIntentMatches,
+    intents: [],
+    matches: [],
     sourceMode: market.sourceMode
   };
 
@@ -467,9 +464,8 @@ export async function createIntentWithMatches(rawInput: unknown): Promise<Create
   const input = sanitizeCreateIntentInput(parsed);
   const market = await getMarketOverview();
   const now = new Date(market.generatedAt);
-  const seedMode = shouldUseSeedData();
 
-  if (seedMode) {
+  if (allowSeedData()) {
     const intent = rowFromCreateInput(input, randomUUID(), now);
     const board = buildIntentBoard({
       intents: [intent],
@@ -488,20 +484,7 @@ export async function createIntentWithMatches(rawInput: unknown): Promise<Create
 
   const env = DatabaseEnvSchema.safeParse(process.env);
   if (!env.success) {
-    const intent = rowFromCreateInput(input, randomUUID(), now);
-    const board = buildIntentBoard({
-      intents: [intent],
-      storedMatches: [],
-      cards: market.cards,
-      sourceMode: market.sourceMode,
-      generatedAt: market.generatedAt
-    });
-
-    return {
-      intent: firstIntentView(board),
-      persisted: false,
-      rateLimited: false
-    };
+    throw new Error("DATABASE_URL is required to create intents in live mode.");
   }
 
   const database = createDbClient(env.data.DATABASE_URL, {

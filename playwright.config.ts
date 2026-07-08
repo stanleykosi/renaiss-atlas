@@ -18,7 +18,7 @@ export default defineConfig({
     url: "http://127.0.0.1:3000",
     reuseExistingServer: false,
     env: {
-      DEMO_MODE: "true",
+      ALLOW_SEED_DATA: "true",
       SENTRY_DSN: "",
       NEXT_PUBLIC_SENTRY_DSN: "",
       SENTRY_AUTH_TOKEN: ""

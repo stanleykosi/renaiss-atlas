@@ -5,7 +5,7 @@ export default function CardsPage() {
     <SurfacePlaceholder
       eyebrow="Cards"
       title="Card Intelligence"
-      emptyState="Card search and detail views are scaffolded for the next phase of typed schemas, repositories, and seed fixtures."
+      emptyState="Open a card from the market table to inspect source-aware pricing, scores, actions, and AI memo evidence."
     />
   );
 }

@@ -7,6 +7,7 @@ import {
 } from "@renaiss/db";
 
 import { adminSyncJobs } from "@/lib/admin-sync-data";
+import { allowSeedData } from "@/lib/data-mode";
 import { logWarn } from "@/lib/logger";
 import { checkAdminSyncRateLimit } from "@/lib/redis-rate-limit";
 
@@ -70,14 +71,14 @@ export async function POST(request: Request) {
     );
   }
 
-  if (process.env["DEMO_MODE"] !== "false") {
+  if (allowSeedData()) {
     return NextResponse.json(
       {
         status: "accepted",
         mode: "seed",
         jobName: parsed.data.jobName,
         command: commandFor(parsed.data.jobName),
-        message: "Demo seed mode records no live sync work."
+        message: "Local seed fixture mode records no live sync work."
       },
       { status: 202 }
     );

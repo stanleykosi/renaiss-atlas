@@ -6,6 +6,6 @@ app.get("/api/health", (context) =>
   context.json({
     status: "ok",
     service: "renaiss-atlas-api",
-    mode: "scaffold"
+    mode: "read-only"
   })
 );

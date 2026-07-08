@@ -7,24 +7,24 @@ describe("checkIntentRateLimit", () => {
     vi.unstubAllGlobals();
   });
 
-  it("allows demo mode without Redis configuration", async () => {
+  it("allows local seed fixtures without Redis configuration", async () => {
     await expect(
       checkIntentRateLimit({
         identifier: "local",
-        env: { DEMO_MODE: "true" },
+        env: { ALLOW_SEED_DATA: "true" },
         now: 1_000
       })
     ).resolves.toMatchObject({
       status: "allowed",
-      source: "demo"
+      source: "seed"
     });
   });
 
-  it("fails closed outside demo mode when Redis is missing", async () => {
+  it("fails closed when Redis is missing in live mode", async () => {
     await expect(
       checkIntentRateLimit({
         identifier: "collector",
-        env: { DEMO_MODE: "false" }
+        env: { ALLOW_SEED_DATA: "false" }
       })
     ).resolves.toMatchObject({
       status: "unavailable"
@@ -43,7 +43,7 @@ describe("checkIntentRateLimit", () => {
     const result = await checkIntentRateLimit({
       identifier: "192.0.2.1",
       env: {
-        DEMO_MODE: "false",
+        ALLOW_SEED_DATA: "false",
         UPSTASH_REDIS_REST_URL: "https://redis.example.com/",
         UPSTASH_REDIS_REST_TOKEN: "test-token"
       },
@@ -71,7 +71,7 @@ describe("checkIntentRateLimit", () => {
     const result = await checkAdminSyncRateLimit({
       identifier: "operator",
       env: {
-        DEMO_MODE: "false",
+        ALLOW_SEED_DATA: "false",
         UPSTASH_REDIS_REST_URL: "https://redis.example.com",
         UPSTASH_REDIS_REST_TOKEN: "test-token"
       },

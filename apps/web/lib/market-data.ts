@@ -49,6 +49,7 @@ import type {
   MarketScore,
   SyncStatus
 } from "@/lib/market-types";
+import { allowSeedData } from "./data-mode";
 
 const MARKET_STALE_AFTER_MS = 1000 * 60 * 60 * 48;
 const CARD_SCORE_TYPES = [
@@ -816,8 +817,20 @@ function seedRows(now: Date): MarketOverview {
   };
 }
 
-function shouldUseSeedData(): boolean {
-  return process.env["DEMO_MODE"] !== "false" || process.env["DATABASE_URL"] == null;
+function emptyDbRows(): DbRows {
+  return {
+    cards: [],
+    prices: [],
+    scores: [],
+    externalComps: [],
+    intents: [],
+    intentMatches: [],
+    bundles: [],
+    bundleItems: [],
+    packActivities: [],
+    sourceRecords: [],
+    syncRuns: []
+  };
 }
 
 async function readDbRows(): Promise<DbRows | null> {
@@ -879,14 +892,11 @@ async function readDbRows(): Promise<DbRows | null> {
 export async function getMarketOverview(): Promise<MarketOverview> {
   const now = new Date();
 
-  if (shouldUseSeedData()) {
+  if (allowSeedData()) {
     return seedRows(now);
   }
 
-  const dbRows = await readDbRows();
-  if (dbRows == null || dbRows.cards.length === 0) {
-    return seedRows(now);
-  }
+  const dbRows = (await readDbRows()) ?? emptyDbRows();
 
   const cards = buildMarketCards({
     sourceMode: "database",

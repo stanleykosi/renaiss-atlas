@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseRuntimeEnv } from "../src/env.js";
 
 describe("parseRuntimeEnv", () => {
-  it("accepts the required scaffold environment contract", () => {
+  it("accepts the required runtime environment contract", () => {
     const env = parseRuntimeEnv({
       DATABASE_URL: "postgres://atlas:atlas@localhost:5432/atlas",
       NEXT_PUBLIC_APP_URL: "http://localhost:3000",
@@ -17,8 +17,7 @@ describe("parseRuntimeEnv", () => {
       UPSTASH_REDIS_REST_TOKEN: "redis-token",
       AI_ENABLED: "false",
       DISCORD_ENABLED: "false",
-      DEMO_MODE: "true",
-      MOCK_EXTERNAL_COMPS: "true"
+      ALLOW_SEED_DATA: "false"
     });
 
     expect(env.RENAISS_MARKETPLACE_STRATEGY).toBe("auto");
@@ -33,7 +32,7 @@ describe("parseRuntimeEnv", () => {
     expect(env.EXTERNAL_COMP_SOURCES).toBe("snkrdunk,pricecharting");
     expect(env.EXTERNAL_COMPS_LIVE_ENABLED).toBe(false);
     expect(env.JINA_READER_BASE_URL).toBe("https://r.jina.ai/");
-    expect(env.DEMO_MODE).toBe(true);
+    expect(env.ALLOW_SEED_DATA).toBe(false);
   });
 
   it("rejects missing secrets instead of falling back silently", () => {
