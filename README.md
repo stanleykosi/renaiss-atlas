@@ -64,21 +64,33 @@ pnpm screenshots
 Required:
 
 ```bash
-NEXT_PUBLIC_APP_URL=https://your-atlas-domain.example
 RENAISS_OS_BASE_URL=https://api.renaissos.com
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-Recommended for higher API limits and production observability:
+Recommended:
 
 ```bash
+NEXT_PUBLIC_APP_URL=https://your-atlas-domain.example
 RENAISS_OS_API_KEY=
 RENAISS_OS_API_SECRET=
+```
+
+`NEXT_PUBLIC_APP_URL` can be omitted on Vercel because Atlas falls back to Vercel's deployment URL. Set it when you have a custom production domain.
+
+Optional Discord:
+
+```bash
 DISCORD_PUBLIC_KEY=
 DISCORD_APPLICATION_ID=
 DISCORD_BOT_TOKEN=
 DISCORD_GUILD_ID=
+```
+
+Optional Sentry:
+
+```bash
 SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
 SENTRY_ORG=

@@ -44,18 +44,23 @@ function warnValue(name) {
   if (!hasValue(name)) warnings.push(name);
 }
 
-requireValue("NEXT_PUBLIC_APP_URL");
+function inferVercelAppUrl() {
+  if (hasValue("NEXT_PUBLIC_APP_URL")) return;
+
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+  if (vercelUrl == null || vercelUrl.trim().length === 0) return;
+
+  process.env.NEXT_PUBLIC_APP_URL = vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
+}
+
+inferVercelAppUrl();
+
 requireValue("RENAISS_OS_BASE_URL");
 requireValue("UPSTASH_REDIS_REST_URL");
 requireValue("UPSTASH_REDIS_REST_TOKEN");
 
 warnValue("RENAISS_OS_API_KEY");
 warnValue("RENAISS_OS_API_SECRET");
-warnValue("DISCORD_PUBLIC_KEY");
-warnValue("DISCORD_APPLICATION_ID");
-warnValue("DISCORD_BOT_TOKEN");
-warnValue("SENTRY_DSN");
-warnValue("NEXT_PUBLIC_SENTRY_DSN");
 
 if (process.env.AI_ENABLED === "true") {
   requireValue("OPENROUTER_API_KEY");
