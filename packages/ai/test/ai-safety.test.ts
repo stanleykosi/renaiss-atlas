@@ -88,7 +88,7 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
   };
 }
 
-describe("AI memo safety", () => {
+describe("Collector Brief safety", () => {
   it("rejects uncited sources from model output", () => {
     const result = validateAiMemoOutput(
       {

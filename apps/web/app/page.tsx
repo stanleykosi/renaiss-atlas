@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils";
 const entryLinks = [
   { href: "/market", label: "Market Pulse" },
   { href: "/cards", label: "Search Card" },
-  { href: "/graded", label: "Cert Lookup" },
-  { href: "/sources", label: "Safety" }
+  { href: "/graded", label: "Cert Lookup" }
 ] as const;
 
 export default function HomePage() {
@@ -41,7 +40,7 @@ export default function HomePage() {
             Renaiss Atlas
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-            Renaiss market data, deterministic Atlas scoring, and on-demand collector reads for collectors who need
+            Renaiss market data, deterministic Atlas scoring, and on-demand Collector Briefs for collectors who need
             fast conviction without keys, signatures, custody, or trade execution.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -63,7 +62,7 @@ export default function HomePage() {
           />
           <StatusTile
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
-            label="AI memo layer"
+            label="Collector Brief"
             value="OpenRouter"
           />
           <StatusTile

@@ -39,11 +39,6 @@ export const atlasApplicationCommand = {
           required: true
         }
       ]
-    },
-    {
-      type: optionType.subcommand,
-      name: "sources",
-      description: "Open Atlas data and safety boundaries."
     }
   ]
 } as const;

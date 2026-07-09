@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Search, ShieldCheck, TrendingUp } from "lucide-react";
+import { ArrowRight, Search, TrendingUp } from "lucide-react";
 
 import { CardArtwork } from "@/components/card-artwork";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +7,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  atlasIndexHref,
   atlasCardHref,
   formatUsdCents,
   getRenaissOsMarketPulse
 } from "@/lib/renaiss-os/data";
+import { formatGradeLabel, gradeLabelTitle } from "@/lib/renaiss-os/display";
+import type { RenaissOsIndexDetail } from "@/lib/renaiss-os/schemas";
 import { cn } from "@/lib/utils";
 
 function formatPct(value: number | null) {
@@ -26,6 +29,20 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+function formatIndexLevel(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
+function indexArtwork(index: RenaissOsIndexDetail) {
+  return index.constituents.find((card) => (card.imageUrlThumb ?? card.imageUrl) != null) ?? null;
+}
+
+function moverArtwork(index: RenaissOsIndexDetail, href: string) {
+  return index.constituents.find((card) => card.href === href) ?? null;
+}
+
 export default async function MarketPage() {
   const pulse = await getRenaissOsMarketPulse();
 
@@ -35,16 +52,12 @@ export default async function MarketPage() {
         <header className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-mono text-xs text-primary uppercase">Market Pulse</p>
-            <h1 className="mt-2 text-3xl font-semibold">Renaiss OS Index Intelligence</h1>
+            <h1 className="mt-2 text-3xl font-semibold">Renaiss Index Intelligence</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Renaiss index tiles, featured movers, recent trades, deterministic scores, and on-demand collector reads.
+              Track Renaiss index moves, standout cards, recent sales, and Collector Briefs from one clean signal board.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/sources" className={cn(buttonVariants({ variant: "secondary" }))}>
-              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              Data & safety
-            </Link>
             <Link href="/" className={cn(buttonVariants({ variant: "ghost" }))}>
               Home
             </Link>
@@ -65,41 +78,77 @@ export default async function MarketPage() {
         </form>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {pulse.indices.map((index) => (
-            <Card key={index.game}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle>{index.label}</CardTitle>
-                    <p className="mt-1 text-xs text-muted-foreground">Updated {formatDate(index.updatedAt)}</p>
+          {pulse.indices.map((index) => {
+            const artwork = indexArtwork(index);
+
+            return (
+              <Card key={index.game}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle>{index.label}</CardTitle>
+                      <p className="mt-1 text-xs text-muted-foreground">Updated {formatDate(index.updatedAt)}</p>
+                    </div>
+                    <Badge variant={index.deltas.d30 == null || index.deltas.d30 >= 0 ? "default" : "warning"}>
+                      {formatPct(index.deltas.d30)} 30d
+                    </Badge>
                   </div>
-                  <Badge variant={index.deltas.d30 == null || index.deltas.d30 >= 0 ? "default" : "warning"}>
-                    {formatPct(index.deltas.d30)} 30d
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="font-mono text-3xl font-semibold">{index.value.toFixed(2)}</p>
-                <div className="mt-4 grid gap-2 text-sm">
-                  <Metric label="Constituents" value={String(index.constituentCount)} />
-                  <Metric label="Rebalance" value={index.rebalance} />
-                  <Metric label="7d" value={formatPct(index.deltas.d7)} />
-                </div>
-                <div className="mt-4 grid gap-2">
-                  {index.topMovers.slice(0, 3).map((mover) => (
-                    <Link
-                      key={`${index.game}:${mover.href}`}
-                      href={atlasCardHref(mover)}
-                      className="rounded-md border bg-secondary/30 px-3 py-2 text-sm transition-colors hover:bg-secondary"
-                    >
-                      <span className="font-medium">{mover.name}</span>
-                      <span className="ml-2 text-muted-foreground">{formatPct(mover.deltaPct)}</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-[84px_1fr] gap-4">
+                    <CardArtwork
+                      src={artwork?.imageUrlThumb ?? artwork?.imageUrl}
+                      alt={`${index.label} representative card image`}
+                      className="bg-secondary/30"
+                    />
+                    <div>
+                      <p className="text-xs font-medium uppercase text-muted-foreground">Index score</p>
+                      <p className="mt-2 font-mono text-3xl font-semibold">{formatIndexLevel(index.value)}</p>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                        Not a dollar price. It tracks the ranked entries Renaiss uses for this index, not every card.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 text-sm">
+                    <Metric label="Index entries" value={String(index.constituentCount)} />
+                    <Metric label="Update cycle" value={index.rebalance} />
+                    <Metric label="7d move" value={formatPct(index.deltas.d7)} />
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">Top movers</p>
+                    <Link href={atlasIndexHref(index.game)} className={cn(buttonVariants({ variant: "ghost", className: "h-8 px-2 text-xs" }))}>
+                      Open index
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+
+                  <div className="mt-2 grid gap-2">
+                    {index.topMovers.slice(0, 3).map((mover) => {
+                      const moverImage = moverArtwork(index, mover.href);
+
+                      return (
+                        <Link
+                          key={`${index.game}:${mover.href}`}
+                          href={atlasCardHref(mover)}
+                          className="grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded-md border bg-secondary/30 px-3 py-2 text-sm transition-colors hover:bg-secondary"
+                        >
+                          <CardArtwork
+                            src={moverImage?.imageUrlThumb ?? moverImage?.imageUrl}
+                            alt={`${mover.name} card image`}
+                            className="w-10 bg-card"
+                          />
+                          <span className="min-w-0 truncate font-medium">{mover.name}</span>
+                          <span className="font-mono text-xs text-muted-foreground">{formatPct(mover.deltaPct)}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -124,7 +173,20 @@ export default async function MarketPage() {
                         <Badge variant={card.confidence === "high" || card.confidence === "prime" ? "default" : "secondary"}>
                           {card.confidence ?? "unknown"}
                         </Badge>
-                        <Badge variant="outline">{card.gradeLabel}</Badge>
+                        <Badge
+                          variant="outline"
+                          title={gradeLabelTitle({
+                            company: card.company,
+                            grade: card.grade,
+                            gradeLabel: card.gradeLabel
+                          })}
+                        >
+                          {formatGradeLabel({
+                            company: card.company,
+                            grade: card.grade,
+                            gradeLabel: card.gradeLabel
+                          })}
+                        </Badge>
                       </div>
                       <p className="mt-2 text-sm font-medium">{card.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">

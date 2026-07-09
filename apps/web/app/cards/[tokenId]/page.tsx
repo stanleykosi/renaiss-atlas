@@ -18,9 +18,10 @@ import {
   getRenaissOsCardIntelligence,
   type RenaissOsCardIntelligence
 } from "@/lib/renaiss-os/data";
+import { formatGradeLabel } from "@/lib/renaiss-os/display";
 import { cn } from "@/lib/utils";
 
-import { AiCollectorMemoCard } from "./ai-collector-memo-card";
+import { CollectorBriefCard } from "./collector-brief-card";
 
 type CardDetailPageProps = {
   params: Promise<{ tokenId: string }>;
@@ -191,7 +192,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
           </div>
 
           <aside className="flex flex-col gap-6">
-            <AiCollectorMemoCard tokenId={tokenId} />
+            <CollectorBriefCard tokenId={tokenId} />
 
             <Card>
               <CardHeader>
@@ -217,16 +218,13 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-                  <CardTitle>Safety Boundary</CardTitle>
+                  <CardTitle>Read-only Boundary</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Atlas uses Renaiss API data and deterministic scores before AI. It does not predict guaranteed upside, execute trades, collect keys, request approvals, or custody assets.
                 </p>
-                <Link href="/sources" className={cn(buttonVariants({ variant: "secondary", className: "mt-4 w-fit" }))}>
-                  Open data policy
-                </Link>
               </CardContent>
             </Card>
           </aside>
@@ -245,9 +243,6 @@ function scoreDescription(label: string) {
   }
   if (label === "Liquidity") {
     return "How much market signal exists to evaluate the card from trades, FMV history, and confidence.";
-  }
-  if (label === "Collector read quality") {
-    return "How useful the on-demand collector read is likely to be from the available Renaiss data.";
   }
   return "A deterministic reading of Renaiss data.";
 }
@@ -293,8 +288,13 @@ function tradeKindLabel(kind: string) {
   return kind;
 }
 
-function tradeDetail(detail: string | null | undefined, gradeLabel: string | null | undefined) {
-  const parts = [gradeLabel, detail].filter((part): part is string => part != null && part.trim().length > 0);
+function tradeDetail(
+  detail: string | null | undefined,
+  grade: { company?: string | null | undefined; grade?: string | null | undefined; gradeLabel?: string | null | undefined }
+) {
+  const displayGrade = formatGradeLabel(grade);
+  const usableGrade = displayGrade === "Unknown grade" ? null : displayGrade;
+  const parts = [usableGrade, detail].filter((part): part is string => part != null && part.trim().length > 0);
   return parts.join(" · ");
 }
 
@@ -327,7 +327,11 @@ function TradeHistoryList({
   return (
     <div className="grid gap-2">
       {trades.map((trade) => {
-        const detail = tradeDetail(trade.detail, trade.gradeLabel ?? fallbackGrade);
+        const detail = tradeDetail(trade.detail, {
+          company: trade.company,
+          grade: trade.grade,
+          gradeLabel: trade.gradeLabel ?? fallbackGrade
+        });
 
         return (
           <article

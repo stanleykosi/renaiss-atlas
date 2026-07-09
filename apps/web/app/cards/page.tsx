@@ -11,6 +11,7 @@ import {
   formatUsdCents,
   searchRenaissOsCards
 } from "@/lib/renaiss-os/data";
+import { formatGradeLabel, gradeLabelTitle } from "@/lib/renaiss-os/display";
 import { cn } from "@/lib/utils";
 
 type CardsPageProps = {
@@ -35,7 +36,7 @@ export default async function CardsPage({ searchParams }: CardsPageProps) {
             <p className="font-mono text-xs text-primary uppercase">Search Card</p>
             <h1 className="mt-2 text-3xl font-semibold">Card Search</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Search Renaiss cards, then open card intelligence, deterministic scores, and an on-demand collector read.
+              Search Renaiss cards, then open card intelligence, deterministic scores, and an on-demand Collector Brief.
             </p>
           </div>
           <Link href="/market" className={cn(buttonVariants({ variant: "secondary" }))}>
@@ -84,7 +85,20 @@ export default async function CardsPage({ searchParams }: CardsPageProps) {
                     <Badge variant={card.confidence === "prime" || card.confidence === "high" ? "default" : "secondary"}>
                       {card.confidence ?? "unknown"}
                     </Badge>
-                    <Badge variant="outline">{card.gradeLabel}</Badge>
+                    <Badge
+                      variant="outline"
+                      title={gradeLabelTitle({
+                        company: card.company,
+                        grade: card.grade,
+                        gradeLabel: card.gradeLabel
+                      })}
+                    >
+                      {formatGradeLabel({
+                        company: card.company,
+                        grade: card.grade,
+                        gradeLabel: card.gradeLabel
+                      })}
+                    </Badge>
                   </div>
                   <h2 className="mt-2 truncate text-sm font-medium">{card.name}</h2>
                   <p className="mt-1 text-xs text-muted-foreground">

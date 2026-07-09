@@ -3,7 +3,6 @@ export type ScoreConfidence = "low" | "medium" | "high";
 export type StoredCardScoreType =
   | "activity_velocity"
   | "liquidity"
-  | "deal"
   | "price_confidence"
   | "source_confidence";
 

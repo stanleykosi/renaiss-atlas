@@ -43,7 +43,6 @@ describe("official Renaiss OS scoring", () => {
 
     expect(Object.keys(result.scores).sort()).toEqual([
       "activity_velocity",
-      "deal",
       "liquidity",
       "price_confidence",
       "source_confidence"
@@ -77,5 +76,47 @@ describe("official Renaiss OS scoring", () => {
       expect(score?.value).toBeGreaterThanOrEqual(0);
       expect(score?.value).toBeLessThanOrEqual(100);
     }
+  });
+
+  it("lets heavy trade and FMV depth lift activity and liquidity even when Renaiss confidence is low", () => {
+    const trades = Array.from({ length: 50 }, (_, index) => ({
+      observedAt: new Date(now.getTime() - index * 60 * 60 * 1000).toISOString(),
+      kind: index % 2 === 0 ? "transaction" as const : "listing" as const,
+      priceUsdCents: 200000 + index,
+      source: "renaissos_index"
+    }));
+    const fmvSeries = Array.from({ length: 259 }, (_, index) => ({
+      t: new Date(now.getTime() - index * 24 * 60 * 60 * 1000).toISOString(),
+      usdCents: 200000,
+      n: 1
+    }));
+
+    const result = scoreRenaissOsCard({
+      cardId: "active-low-confidence-card",
+      confidence: "low",
+      sourceCount: 1,
+      observationCount: 0,
+      totalObservationCount: 259,
+      lastSaleAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      trades,
+      fmvSeries,
+      sourceBreakdown: [
+        {
+          source: "renaissos_index",
+          category: "public",
+          count: 259,
+          medianUsdCents: 200000
+        }
+      ],
+      now
+    });
+
+    expect(result.scores.activity_velocity?.value).toBe(100);
+    expect(result.scores.activity_velocity?.confidence).toBe("high");
+    expect(result.scores.liquidity?.value).toBeGreaterThanOrEqual(75);
+    expect(result.scores.liquidity?.confidence).toBe("high");
+    expect(result.scores.price_confidence?.value).toBeGreaterThanOrEqual(50);
+    expect(result.scores.price_confidence?.confidence).toBe("medium");
   });
 });

@@ -78,8 +78,8 @@ function officialConfidenceScore(value: RenaissOsConfidence): number {
   return value == null ? 18 : confidenceValue[value];
 }
 
-function scoreConfidence(value: number, riskFlags: readonly string[]): ScoreConfidence {
-  if (riskFlags.includes("official_confidence_low") || riskFlags.includes("official_observations_missing")) {
+function scoreConfidence(value: number, confidenceRiskFlags: readonly string[]): ScoreConfidence {
+  if (confidenceRiskFlags.includes("official_confidence_low") || confidenceRiskFlags.includes("official_observations_missing")) {
     return value >= 50 ? "medium" : "low";
   }
   if (value >= 75) return "high";
@@ -130,11 +130,12 @@ function result(input: {
   value: number;
   reasons: string[];
   riskFlags: string[];
+  confidenceRiskFlags?: string[];
   inputs: Record<string, unknown>;
 }) {
   return {
     value: roundScore(input.value),
-    confidence: scoreConfidence(input.value, input.riskFlags),
+    confidence: scoreConfidence(input.value, input.confidenceRiskFlags ?? input.riskFlags),
     reasons: input.reasons,
     riskFlags: input.riskFlags,
     inputs: input.inputs
@@ -171,24 +172,38 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
   const recency = recencyScore(input.lastSaleAt ?? input.updatedAt, now);
   const activity = tradeActivityScore(input.trades ?? [], now);
   const fmvDepth = fmvDepthScore(input.fmvSeries ?? []);
+  const priceCoverage = Math.max(observations, fmvDepth);
   const breakdown = sourceBreakdownScore(input.sourceBreakdown ?? []);
-  const riskFlags: string[] = [];
+  const fmvRiskFlags: string[] = [];
+  const coverageRiskFlags: string[] = [];
+  const activityRiskFlags: string[] = [];
+  const liquidityRiskFlags: string[] = [];
 
-  if (input.confidence === "low" || input.confidence == null) riskFlags.push("official_confidence_low");
-  if ((input.observationCount ?? 0) === 0) riskFlags.push("official_observations_missing");
-  if ((input.sourceCount ?? 0) <= 1) riskFlags.push("single_source_evidence");
+  if (input.confidence === "low" || input.confidence == null) fmvRiskFlags.push("official_confidence_low");
+  if ((input.observationCount ?? 0) === 0 && (input.fmvSeries?.length ?? 0) === 0) {
+    fmvRiskFlags.push("official_observations_missing");
+  }
+  if ((input.sourceCount ?? 0) <= 1 && (input.sourceBreakdown?.length ?? 0) <= 1) coverageRiskFlags.push("single_source_evidence");
   if (ageDays(input.lastSaleAt, now) != null && (ageDays(input.lastSaleAt, now) ?? 0) > 90) {
-    riskFlags.push("stale_last_sale");
+    fmvRiskFlags.push("stale_last_sale");
+    activityRiskFlags.push("stale_last_sale");
+    liquidityRiskFlags.push("stale_last_sale");
+  }
+  if (activity === 0) {
+    activityRiskFlags.push("trade_activity_missing");
+    liquidityRiskFlags.push("trade_activity_missing");
   }
 
   const priceConfidence = result({
-    value: official * 0.45 + sources * 0.22 + observations * 0.2 + recency * 0.13,
-    reasons: ["Atlas computes FMV reliability from Renaiss confidence, record coverage, and last-sale recency."],
-    riskFlags,
+    value: official * 0.25 + sources * 0.12 + priceCoverage * 0.28 + fmvDepth * 0.2 + recency * 0.1 + activity * 0.05,
+    reasons: ["Atlas computes FMV reliability from Renaiss confidence, FMV depth, trade activity, and last-sale recency."],
+    riskFlags: [...fmvRiskFlags, ...coverageRiskFlags],
+    confidenceRiskFlags: fmvRiskFlags,
     inputs: {
       officialConfidence: input.confidence,
       sourceCount: input.sourceCount ?? null,
       observationCount: input.observationCount ?? null,
+      fmvPointCount: input.fmvSeries?.length ?? 0,
       lastSaleAt: input.lastSaleAt ?? null
     }
   });
@@ -196,7 +211,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
   const activityVelocity = result({
     value: Math.max(activity, recency * 0.8),
     reasons: ["Atlas computes market activity from Renaiss trades, listings, and last-sale recency."],
-    riskFlags: activity === 0 ? [...riskFlags, "trade_activity_missing"] : riskFlags,
+    riskFlags: activityRiskFlags,
     inputs: {
       tradeCount: input.trades?.length ?? 0,
       lastSaleAt: input.lastSaleAt ?? null
@@ -206,7 +221,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
   const sourceConfidence = result({
     value: Math.max(breakdown, sources * 0.65 + totalObservations * 0.35),
     reasons: ["Atlas computes data depth from Renaiss record coverage."],
-    riskFlags,
+    riskFlags: coverageRiskFlags,
     inputs: {
       sourceBreakdownCount: input.sourceBreakdown?.length ?? 0,
       sourceCount: input.sourceCount ?? null,
@@ -215,28 +230,16 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
   });
 
   const liquidity = result({
-    value: activity * 0.35 + sources * 0.2 + observations * 0.2 + fmvDepth * 0.15 + official * 0.1,
-    reasons: ["Atlas computes liquidity from Renaiss trades, FMV history, and confidence."],
-    riskFlags,
+    value: activity * 0.45 + fmvDepth * 0.25 + recency * 0.1 + sources * 0.08 + observations * 0.07 + official * 0.05,
+    reasons: ["Atlas computes liquidity from Renaiss trade activity, FMV history depth, and recency."],
+    riskFlags: liquidityRiskFlags,
     inputs: {
       tradeCount: input.trades?.length ?? 0,
       sourceCount: input.sourceCount ?? null,
       observationCount: input.observationCount ?? null,
       fmvPointCount: input.fmvSeries?.length ?? 0,
+      fmvDepth,
       confidence: input.confidence
-    }
-  });
-
-  const deal = result({
-    value: priceConfidence.value * 0.45 + liquidity.value * 0.35 + sourceConfidence.value * 0.2,
-    reasons: [
-      "Collector read quality measures whether Renaiss data is strong enough for a useful AI read; it is not a price prediction or trade instruction."
-    ],
-    riskFlags,
-    inputs: {
-      priceConfidence: priceConfidence.value,
-      liquidity: liquidity.value,
-      sourceConfidence: sourceConfidence.value
     }
   });
 
@@ -250,8 +253,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
         computedAt,
         score: sourceConfidence
       }),
-      liquidity: stored({ cardId: input.cardId, scoreType: "liquidity", computedAt, score: liquidity }),
-      deal: stored({ cardId: input.cardId, scoreType: "deal", computedAt, score: deal })
+      liquidity: stored({ cardId: input.cardId, scoreType: "liquidity", computedAt, score: liquidity })
     }
   };
 }

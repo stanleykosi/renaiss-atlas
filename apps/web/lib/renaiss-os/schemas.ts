@@ -342,6 +342,8 @@ export const RenaissOsGradedLookupSchema = z
 
 export type RenaissOsCardSummary = z.infer<typeof RenaissOsCardSummarySchema>;
 export type RenaissOsCardDetail = z.infer<typeof RenaissOsCardDetailSchema>;
+export type RenaissOsIndexDetail = z.infer<typeof RenaissOsIndexDetailSchema>;
+export type RenaissOsIndexConstituent = z.infer<typeof RenaissOsIndexConstituentSchema>;
 export type RenaissOsTradeRow = z.infer<typeof RenaissOsTradeRowSchema>;
 export type RenaissOsFmvSeriesResponse = z.infer<typeof RenaissOsFmvSeriesResponseSchema>;
 export type RenaissOsGradedLookup = z.infer<typeof RenaissOsGradedLookupSchema>;

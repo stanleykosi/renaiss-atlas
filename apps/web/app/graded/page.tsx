@@ -11,6 +11,7 @@ import {
   formatUsdCents,
   lookupRenaissOsGradedCert
 } from "@/lib/renaiss-os/data";
+import { formatGradeLabel, gradeLabelTitle } from "@/lib/renaiss-os/display";
 import type { RenaissOsGradedLookup } from "@/lib/renaiss-os/schemas";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +79,14 @@ function LookupResult({ lookup }: { lookup: RenaissOsGradedLookup }) {
           <div className="grid gap-3 text-sm">
             <Metric label="Cert" value={lookup.certNumber || lookup.cert} />
             <Metric label="Company" value={lookup.company ?? "Unknown"} />
-            <Metric label="Grade" value={lookup.gradeLabel ?? lookup.grade ?? "Unknown"} />
+            <Metric
+              label="Grade"
+              value={formatGradeLabel({
+                company: lookup.company,
+                grade: lookup.grade,
+                gradeLabel: lookup.gradeLabel
+              })}
+            />
             <Metric label="Reason" value={lookup.reason ?? "N/A"} />
           </div>
         </CardContent>
@@ -105,7 +113,20 @@ function LookupResult({ lookup }: { lookup: RenaissOsGradedLookup }) {
                   <Badge variant={lookup.card.confidence === "prime" || lookup.card.confidence === "high" ? "default" : "secondary"}>
                     {lookup.card.confidence ?? "unknown"}
                   </Badge>
-                  <Badge variant="outline">{lookup.card.gradeLabel}</Badge>
+                  <Badge
+                    variant="outline"
+                    title={gradeLabelTitle({
+                      company: lookup.card.company,
+                      grade: lookup.card.grade,
+                      gradeLabel: lookup.card.gradeLabel
+                    })}
+                  >
+                    {formatGradeLabel({
+                      company: lookup.card.company,
+                      grade: lookup.card.grade,
+                      gradeLabel: lookup.card.gradeLabel
+                    })}
+                  </Badge>
                 </div>
                 <h2 className="mt-3 text-lg font-semibold">{lookup.card.name}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">

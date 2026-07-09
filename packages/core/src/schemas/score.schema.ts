@@ -7,7 +7,6 @@ export const ScoreEntityTypeSchema = z.enum(["card"]);
 export const ScoreTypeSchema = z.enum([
   "activity_velocity",
   "liquidity",
-  "deal",
   "price_confidence",
   "source_confidence"
 ]);

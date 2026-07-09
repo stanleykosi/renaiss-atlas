@@ -10,7 +10,7 @@ test("opens card intelligence", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Price Panel" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Atlas Scores" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Graded Cert Lookup" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Run Collector Read" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate Collector Brief" })).toBeVisible();
 });
 
 test("shows a not-found state for an unsupported card token", async ({ page }) => {

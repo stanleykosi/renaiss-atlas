@@ -2,24 +2,24 @@
 
 import type { AiCardMemoResult } from "@renaiss/ai";
 
-import { generateRenaissOsCardMemo } from "@/lib/renaiss-os/data";
+import { generateRenaissOsCollectorBrief } from "@/lib/renaiss-os/data";
 
-export type GenerateCollectorReadResult =
-  | { ok: true; memo: AiCardMemoResult }
+export type GenerateCollectorBriefResult =
+  | { ok: true; brief: AiCardMemoResult }
   | { ok: false; error: string };
 
-export async function generateCollectorRead(tokenId: string): Promise<GenerateCollectorReadResult> {
+export async function generateCollectorBrief(tokenId: string): Promise<GenerateCollectorBriefResult> {
   try {
-    const memo = await generateRenaissOsCardMemo(tokenId);
-    if (memo == null) {
+    const brief = await generateRenaissOsCollectorBrief(tokenId);
+    if (brief == null) {
       return { ok: false, error: "Renaiss card could not be found." };
     }
 
-    return { ok: true, memo };
+    return { ok: true, brief };
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Collector read could not be generated."
+      error: error instanceof Error ? error.message : "Collector Brief could not be generated."
     };
   }
 }

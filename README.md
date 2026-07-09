@@ -10,13 +10,13 @@ Atlas does not collect private keys or seed phrases, request token approvals, ex
 - `apps/web/app/v1/[...path]/route.ts` backend proxy for the official Renaiss OS Index API.
 - `apps/web/app/api/discord/interactions/route.ts` signed Discord interactions endpoint.
 - `packages/core` official scoring, source/freshness schemas, safety constants, and utilities.
-- `packages/ai` schema-validated OpenRouter memo provider. If OpenRouter is missing, unavailable, or unsafe, Atlas fails loudly instead of fabricating a fallback memo.
+- `packages/ai` schema-validated OpenRouter Collector Brief provider. If OpenRouter is missing, unavailable, or unsafe, Atlas fails loudly instead of fabricating fallback analysis.
 - Discord is supported as a Vercel-hosted interactions webhook, not a long-running gateway worker.
 
 The production path is:
 
 ```text
-Market Pulse -> Search Card -> Card Intelligence -> Graded Cert Lookup -> AI Collector Memo
+Market Pulse -> Search Card -> Card Intelligence -> Graded Cert Lookup -> Collector Brief
 ```
 
 ## Official API
@@ -109,7 +109,7 @@ Discord interactions URL:
 https://your-atlas-domain.example/api/discord/interactions
 ```
 
-Supported Discord commands: `/atlas market`, `/atlas card`, `/atlas graded`, and `/atlas sources`.
+Supported Discord commands: `/atlas market`, `/atlas card`, and `/atlas graded`.
 
 Register commands with:
 
@@ -123,7 +123,7 @@ pnpm discord:register
 - No private keys, seed phrases, token approvals, custody, lending execution, or trade execution.
 - Deterministic scoring runs before AI.
 - AI output is Zod-validated, citation-checked, confidence-capped, and rejected when unsafe or unavailable.
-- Scores and memos use official Renaiss OS confidence, source counts, observation counts, last sale timestamps, trades, FMV series, and source breakdown.
+- Scores and Collector Briefs use official Renaiss OS confidence, source counts, observation counts, last sale timestamps, trades, FMV series, and source breakdown.
 
 ## Deployment
 

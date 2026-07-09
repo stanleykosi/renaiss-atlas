@@ -9,6 +9,7 @@ import {
   parseRenaissOsCardHref,
   searchRenaissOsCards
 } from "@/lib/renaiss-os/data";
+import { formatGradeLabel } from "@/lib/renaiss-os/display";
 
 import {
   getAtlasSubcommand,
@@ -50,7 +51,14 @@ async function marketResponse(context: AtlasDiscordContext): Promise<DiscordInte
     .join("\n");
   const featured = pulse.featured
     .slice(0, 3)
-    .map((card) => `- ${card.name} ${card.gradeLabel}: ${formatUsdCents(card.priceUsdCents)} (${card.confidence ?? "low"})`)
+    .map(
+      (card) =>
+        `- ${card.name} ${formatGradeLabel({
+          company: card.company,
+          grade: card.grade,
+          gradeLabel: card.gradeLabel
+        })}: ${formatUsdCents(card.priceUsdCents)} (${card.confidence ?? "low"})`
+    )
     .join("\n");
   const freshestIndex = pulse.indices
     .map((index) => index.updatedAt)
@@ -87,7 +95,7 @@ async function cardDetailResponse(query: string, context: AtlasDiscordContext): 
       `FMV: ${formatUsdCents(intelligence.card.priceUsdCents)} | Renaiss confidence: ${intelligence.card.confidence ?? "low"}`,
       renaissConfidenceSummary(intelligence.card),
       `Liquidity: ${liquidityScore == null ? "n/a" : `${Math.round(liquidityScore.value)} (${liquidityScore.confidence})`}`,
-      "Collector read: open the card page to run it on demand.",
+      "Collector Brief: open the card page to generate it on demand.",
       `Freshness: ${dateLabel(intelligence.card.updatedAt ?? intelligence.card.lastSaleAt)}.`,
       `Open: ${appLink(context, cardPath)}`
     ].join("\n")
@@ -111,7 +119,11 @@ async function cardSearchResponse(query: string, context: AtlasDiscordContext): 
     .slice(0, 5)
     .map(
       (card, index) =>
-        `${index + 1}. ${cleanLine(card.name)} ${card.gradeLabel} - ${formatUsdCents(card.priceUsdCents)} (${card.confidence ?? "low"})\n${appLink(context, atlasCardHref(card))}`
+        `${index + 1}. ${cleanLine(card.name)} ${formatGradeLabel({
+          company: card.company,
+          grade: card.grade,
+          gradeLabel: card.gradeLabel
+        })} - ${formatUsdCents(card.priceUsdCents)} (${card.confidence ?? "low"})\n${appLink(context, atlasCardHref(card))}`
     )
     .join("\n");
 
@@ -119,7 +131,7 @@ async function cardSearchResponse(query: string, context: AtlasDiscordContext): 
     [
       `**Atlas Card Search: ${cleanLine(query)}**`,
       cards,
-      "Open a result for card intelligence and an on-demand collector read."
+      "Open a result for card intelligence and an on-demand Collector Brief."
     ].join("\n")
   );
 }
@@ -139,7 +151,11 @@ async function gradedResponse(cert: string, context: AtlasDiscordContext): Promi
   return messageResponse(
     [
       `**Atlas Graded Cert: ${cleanLine(lookup.certNumber)}**`,
-      `${cleanLine(lookup.card.name)} ${lookup.gradeLabel ?? lookup.card.gradeLabel}`,
+      `${cleanLine(lookup.card.name)} ${formatGradeLabel({
+        company: lookup.company ?? lookup.card.company,
+        grade: lookup.grade ?? lookup.card.grade,
+        gradeLabel: lookup.gradeLabel ?? lookup.card.gradeLabel
+      })}`,
       `FMV: ${formatUsdCents(lookup.card.priceUsdCents)} | Confidence: ${lookup.card.confidence ?? "low"}`,
       `Freshness: ${dateLabel(lookup.card.lastSaleAt)} via Renaiss OS Index API.`,
       `Open cert: ${appLink(context, `/graded/${encodeURIComponent(cert)}`)}`,
@@ -171,17 +187,7 @@ export async function handleAtlasDiscordInteraction(
       return await gradedResponse(cert, context);
     }
 
-    if (subcommand.name === "sources") {
-      return messageResponse(
-        [
-          "**Atlas Data & Safety**",
-          "Renaiss OS Index API only. Read-only, no keys, approvals, custody, or trade execution.",
-          `Open: ${appLink(context, "/sources")}`
-        ].join("\n")
-      );
-    }
-
-    return messageResponse("Use `/atlas market`, `/atlas card`, `/atlas graded`, or `/atlas sources`.");
+    return messageResponse("Use `/atlas market`, `/atlas card`, or `/atlas graded`.");
   } catch (error) {
     const reason = error instanceof Error ? error.message : "unknown error";
     return messageResponse(

@@ -50,7 +50,7 @@ export type DiscordInteractionResponse = {
   };
 };
 
-export type AtlasDiscordSubcommand = "market" | "card" | "graded" | "sources";
+export type AtlasDiscordSubcommand = "market" | "card" | "graded";
 
 export function parseDiscordInteraction(input: unknown): DiscordInteraction {
   return DiscordInteractionSchema.parse(input);
@@ -82,8 +82,7 @@ export function getAtlasSubcommand(interaction: DiscordInteraction): {
   const options = interaction.data?.options ?? [];
   const subcommand = options.find((option) => option.type === SUB_COMMAND_OPTION_TYPE);
   const name = subcommand?.name;
-  const validName =
-    name === "market" || name === "card" || name === "graded" || name === "sources" ? name : null;
+  const validName = name === "market" || name === "card" || name === "graded" ? name : null;
 
   return {
     name: validName,

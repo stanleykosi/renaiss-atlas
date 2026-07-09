@@ -13,11 +13,13 @@ import {
 } from "@renaiss/core";
 
 import { createRenaissOSClient } from "./client";
+import { formatGradeLabel } from "./display";
 import type {
   RenaissOsCardDetail,
   RenaissOsCardSummary,
   RenaissOsFmvSeriesResponse,
   RenaissOsGradedLookup,
+  RenaissOsIndexDetail,
   RenaissOsTradeRow
 } from "./schemas";
 
@@ -30,7 +32,7 @@ export type RenaissOsCardPath = {
 
 export type RenaissOsMarketPulse = {
   generatedAt: string;
-  indices: Awaited<ReturnType<ReturnType<typeof createRenaissOSClient>["getIndices"]>>["data"]["indices"];
+  indices: RenaissOsIndexDetail[];
   featured: RenaissOsCardSummary[];
   recentTrades: Awaited<ReturnType<ReturnType<typeof createRenaissOSClient>["getRecentTrades"]>>["data"]["trades"];
 };
@@ -101,6 +103,10 @@ export function atlasCardHref(card: Pick<RenaissOsCardSummary, "href">): string 
   return `/cards/${encodeURIComponent(encodeRenaissOsCardToken(card.href))}`;
 }
 
+export function atlasIndexHref(game: string): string {
+  return `/market/${encodeURIComponent(game)}`;
+}
+
 function normalizeName(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -140,7 +146,6 @@ function sourceRef(input: SourceRefInput): SourceRef {
 
 function scoreLabel(scoreType: string): string {
   if (scoreType === "activity_velocity") return "Market activity";
-  if (scoreType === "deal") return "Collector read quality";
   if (scoreType === "price_confidence") return "FMV reliability";
   if (scoreType === "source_confidence") return "Data depth";
   if (scoreType === "liquidity") return "Liquidity";
@@ -205,6 +210,17 @@ function scoreForMemo(score: ReturnType<typeof scoreRenaissOsCard>["scores"][key
     riskFlags: score.riskFlags,
     computedAt: score.computedAt
   };
+}
+
+function medianUsdCents(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const midpoint = Math.floor(sorted.length / 2);
+  const upper = sorted[midpoint];
+  if (upper == null) return null;
+  if (sorted.length % 2 === 1) return upper;
+  const lower = sorted[midpoint - 1];
+  return lower == null ? upper : Math.round((lower + upper) / 2);
 }
 
 function freshnessFor(card: RenaissOsCardDetail): Freshness[] {
@@ -306,6 +322,13 @@ function buildMemoInput(input: {
   const confidence = sourceConfidence(input.card.confidence);
   const transactionCount = input.trades.filter((trade) => trade.kind === "transaction").length;
   const listingCount = input.trades.filter((trade) => trade.kind === "listing").length;
+  const pricedTrades = input.trades
+    .filter((trade) => trade.priceUsdCents != null)
+    .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt));
+  const recentTradePrices = pricedTrades.map((trade) => trade.priceUsdCents).filter((value): value is number => value != null);
+  const latestTrade = pricedTrades[0] ?? null;
+  const latestFmv = input.fmvSeries.points.at(-1) ?? null;
+  const previousFmv = input.fmvSeries.points.at(-2) ?? null;
   const actions: ActionRecommendation[] = [
     {
       subjectType: "card",
@@ -319,7 +342,7 @@ function buildMemoInput(input: {
       sourceIds,
       cta: {
         label: "Compare card signals",
-        href: "/sources"
+        href: input.card.href
       }
     }
   ];
@@ -336,7 +359,11 @@ function buildMemoInput(input: {
       characterName: input.card.name,
       tcg: input.card.game,
       grader: input.card.company,
-      grade: input.card.gradeLabel,
+      grade: formatGradeLabel({
+        company: input.card.company,
+        grade: input.card.grade,
+        gradeLabel: input.card.gradeLabel
+      }),
       language: input.card.language,
       imageUrl: input.card.imageUrlLg ?? input.card.imageUrl,
       status: "unknown",
@@ -351,7 +378,17 @@ function buildMemoInput(input: {
       tradeCount: input.trades.length,
       transactionCount,
       listingCount,
-      fmvPointCount: input.fmvSeries.points.length
+      fmvPointCount: input.fmvSeries.points.length,
+      priceAction: {
+        latestTradeKind: latestTrade?.kind ?? null,
+        latestTradeObservedAt: latestTrade?.observedAt ?? null,
+        latestTradeUsdCents: latestTrade?.priceUsdCents ?? null,
+        lowestRecentTradeUsdCents: recentTradePrices.length === 0 ? null : Math.min(...recentTradePrices),
+        medianRecentTradeUsdCents: medianUsdCents(recentTradePrices),
+        highestRecentTradeUsdCents: recentTradePrices.length === 0 ? null : Math.max(...recentTradePrices),
+        latestFmvUsdCents: latestFmv?.usdCents ?? null,
+        previousFmvUsdCents: previousFmv?.usdCents ?? null
+      }
     },
     scores,
     candidateActions: actions,
@@ -369,13 +406,20 @@ export async function getRenaissOsMarketPulse(): Promise<RenaissOsMarketPulse> {
     client.getFeatured(12),
     client.getRecentTrades(12)
   ]);
+  const indexDetails = await Promise.all(indices.data.indices.map((index) => client.getIndex(index.game)));
 
   return {
     generatedAt: new Date().toISOString(),
-    indices: indices.data.indices,
+    indices: indexDetails.map((index) => index.data),
     featured: featured.data.cards,
     recentTrades: recentTrades.data.trades
   };
+}
+
+export async function getRenaissOsIndexDetail(game: string): Promise<RenaissOsIndexDetail | null> {
+  const allowedGames = new Set(["pokemon", "one-piece", "sports"]);
+  if (!allowedGames.has(game)) return null;
+  return (await createRenaissOSClient().getIndex(game)).data;
 }
 
 export async function searchRenaissOsCards(query: string) {
@@ -415,7 +459,7 @@ export async function getRenaissOsCardIntelligence(token: string): Promise<Renai
   };
 }
 
-export async function generateRenaissOsCardMemo(token: string): Promise<AiCardMemoResult | null> {
+export async function generateRenaissOsCollectorBrief(token: string): Promise<AiCardMemoResult | null> {
   const path = parseRenaissOsCardHref(token);
   if (path == null) return null;
 

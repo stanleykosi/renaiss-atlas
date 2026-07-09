@@ -14,7 +14,19 @@ export const AiMemoOfficialEvidenceSchema = z.object({
   tradeCount: z.number().int().nonnegative(),
   transactionCount: z.number().int().nonnegative(),
   listingCount: z.number().int().nonnegative(),
-  fmvPointCount: z.number().int().nonnegative()
+  fmvPointCount: z.number().int().nonnegative(),
+  priceAction: z
+    .object({
+      latestTradeKind: z.enum(["listing", "transaction"]).nullable(),
+      latestTradeObservedAt: z.string().datetime().nullable(),
+      latestTradeUsdCents: z.number().int().nonnegative().nullable(),
+      lowestRecentTradeUsdCents: z.number().int().nonnegative().nullable(),
+      medianRecentTradeUsdCents: z.number().int().nonnegative().nullable(),
+      highestRecentTradeUsdCents: z.number().int().nonnegative().nullable(),
+      latestFmvUsdCents: z.number().int().nonnegative().nullable(),
+      previousFmvUsdCents: z.number().int().nonnegative().nullable()
+    })
+    .optional()
 });
 
 export const AiMemoInputSchema = z.object({
