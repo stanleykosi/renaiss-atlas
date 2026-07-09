@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BadgeCheck, Database, Search } from "lucide-react";
+import { BadgeCheck, Search } from "lucide-react";
 
+import { CardArtwork } from "@/components/card-artwork";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,17 +96,10 @@ function LookupResult({ lookup }: { lookup: RenaissOsGradedLookup }) {
               href={atlasCardHref(lookup.card)}
               className="grid gap-4 rounded-md border bg-secondary/30 p-4 transition-colors hover:bg-secondary sm:grid-cols-[96px_1fr]"
             >
-              {(lookup.card.imageUrlThumb ?? lookup.card.imageUrl) == null ? (
-                <div className="grid aspect-square place-items-center rounded-md border bg-card">
-                  <Database className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-                </div>
-              ) : (
-                <img
-                  src={lookup.card.imageUrlThumb ?? lookup.card.imageUrl ?? ""}
-                  alt=""
-                  className="aspect-square rounded-md border object-cover"
-                />
-              )}
+              <CardArtwork
+                src={lookup.card.imageUrlThumb ?? lookup.card.imageUrl}
+                alt={`${lookup.card.name} card image`}
+              />
               <div>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant={lookup.card.confidence === "prime" || lookup.card.confidence === "high" ? "default" : "secondary"}>

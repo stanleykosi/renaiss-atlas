@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { AiCardMemoResult } from "@renaiss/ai";
 import {
-  AlertTriangle,
   ArrowLeft,
   BadgeCheck,
   BarChart3,
   FileSearch,
-  ShieldCheck,
-  Sparkles
+  ShieldCheck
 } from "lucide-react";
 
+import { CardArtwork } from "@/components/card-artwork";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +16,11 @@ import { Input } from "@/components/ui/input";
 import {
   formatUsdCents,
   getRenaissOsCardIntelligence,
-  renaissConfidenceSummary
+  type RenaissOsCardIntelligence
 } from "@/lib/renaiss-os/data";
 import { cn } from "@/lib/utils";
+
+import { AiCollectorMemoCard } from "./ai-collector-memo-card";
 
 type CardDetailPageProps = {
   params: Promise<{ tokenId: string }>;
@@ -32,6 +32,17 @@ function formatDate(value: string | null | undefined) {
     month: "short",
     day: "numeric",
     year: "numeric"
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (value == null) return "Missing";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
   }).format(new Date(value));
 }
 
@@ -56,52 +67,37 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
     notFound();
   }
 
-  const { card, trades, fmvSeries, scores, memo, memoError } = intelligence;
+  const { card, trades, fmvSeries, scores } = intelligence;
   const recentFmv = fmvSeries.points.slice(-8).reverse();
 
   return (
     <main className="min-h-screen px-6 py-6 md:px-10">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-5 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+        <header className="grid gap-5 border-b pb-5 lg:grid-cols-[150px_minmax(0,1fr)_460px] lg:items-end">
+          <CardArtwork
+            src={card.imageUrlLg ?? card.imageUrl}
+            alt={`${card.name} card image`}
+            className="order-2 w-32 lg:order-1 lg:w-full"
+            loading="eager"
+          />
+
+          <div className="order-1 lg:order-2">
             <Link href="/cards" className={cn(buttonVariants({ variant: "ghost", className: "-ml-2 h-8 px-2" }))}>
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Search
             </Link>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant={card.confidence === "prime" || card.confidence === "high" ? "default" : "secondary"}>
-                Confidence: {confidenceText(card.confidence)}
-              </Badge>
-              <Badge variant="outline">{card.gradeLabel}</Badge>
-              <Badge variant="secondary">Renaiss API</Badge>
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-normal">{card.name}</h1>
+            <h1 className="mt-4 text-3xl font-semibold tracking-normal">{card.name}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {card.setName ?? "Unknown set"} #{card.cardNumber ?? "N/A"} · {card.language ?? "Unknown language"}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[460px]">
+          <div className="order-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[460px]">
             <HeaderMetric label="FMV" value={formatUsdCents(card.priceUsdCents)} />
-            <HeaderMetric label="Confidence" value={confidenceText(card.confidence)} />
+            <HeaderMetric label="Renaiss confidence" value={confidenceText(card.confidence)} />
             <HeaderMetric label="Last sale" value={formatDate(card.lastSaleAt)} />
           </div>
         </header>
-
-        <section className="rounded-md border bg-secondary/30 p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-                <h2 className="text-sm font-semibold">Renaiss API data only</h2>
-              </div>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground">
-                {renaissConfidenceSummary(card)} Low or medium confidence means the available Renaiss records are thinner or older.
-              </p>
-            </div>
-            <Badge variant="outline">Read-only</Badge>
-          </div>
-        </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
           <div className="flex flex-col gap-6">
@@ -119,10 +115,6 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                   <Metric label="30d" value={formatPct(card.deltas.d30)} />
                   <Metric label="365d" value={formatPct(card.deltas.d365)} />
                 </div>
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                  FMV and movement come from Renaiss card and FMV history endpoints. Atlas does not add price predictions or
-                  trade-command language.
-                </p>
               </CardContent>
             </Card>
 
@@ -132,10 +124,6 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                   <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
                   <CardTitle>Atlas Scores</CardTitle>
                 </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Scores are deterministic readings of Renaiss data. They explain price confidence, activity, liquidity, and memo
-                  readiness; they are not predictions or trading instructions.
-                </p>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -152,17 +140,15 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                         </div>
                       </div>
                       <p className="mt-3 text-xs leading-5 text-muted-foreground">{score.reasons[0]}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {visibleRiskFlags(score.riskFlags).length === 0 ? (
-                          <Badge variant="outline">No deterministic risk flags</Badge>
-                        ) : (
-                          visibleRiskFlags(score.riskFlags).map((flag) => (
+                      {visibleRiskFlags(score.riskFlags).length === 0 ? null : (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {visibleRiskFlags(score.riskFlags).map((flag) => (
                             <Badge key={flag} variant="outline">
                               {riskFlagLabel(flag)}
                             </Badge>
-                          ))
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>
@@ -173,20 +159,15 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>FMV History</CardTitle>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Daily fair-market-value points with the number of Renaiss records behind each point.
+                  </p>
                 </CardHeader>
                 <CardContent>
                   {recentFmv.length === 0 ? (
                     <EmptyState title="No FMV history yet" detail="Renaiss returned no FMV history points for this card." />
                   ) : (
-                    <div className="grid gap-2">
-                      {recentFmv.map((point) => (
-                        <Metric
-                          key={point.t}
-                          label={`${formatDate(point.t)} · n=${point.n}`}
-                          value={formatUsdCents(point.usdCents)}
-                        />
-                      ))}
-                    </div>
+                    <FmvHistoryList points={recentFmv} />
                   )}
                 </CardContent>
               </Card>
@@ -194,20 +175,15 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Trades & Listings</CardTitle>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Recent Renaiss trade-history rows with observed dates.
+                  </p>
                 </CardHeader>
                 <CardContent>
                   {trades.length === 0 ? (
                     <EmptyState title="No recent trade rows" detail="Renaiss returned no recent trade rows for this card." />
                   ) : (
-                    <div className="grid gap-2">
-                      {trades.slice(0, 8).map((trade) => (
-                        <Metric
-                          key={`${trade.source}:${trade.observedAt}:${trade.priceUsdCents}`}
-                          label={`${trade.displayName} · ${trade.kind}`}
-                          value={formatUsdCents(trade.priceUsdCents)}
-                        />
-                      ))}
-                    </div>
+                    <TradeHistoryList trades={trades.slice(0, 8)} fallbackGrade={card.gradeLabel} />
                   )}
                 </CardContent>
               </Card>
@@ -215,7 +191,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
           </div>
 
           <aside className="flex flex-col gap-6">
-            <AiMemoPanel memo={memo} memoError={memoError} />
+            <AiCollectorMemoCard tokenId={tokenId} />
 
             <Card>
               <CardHeader>
@@ -246,7 +222,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Atlas uses Renaiss API data, deterministic scores before AI, schema-validated AI output, and Renaiss citations. It does not predict guaranteed upside, execute trades, collect keys, request approvals, or custody assets.
+                  Atlas uses Renaiss API data and deterministic scores before AI. It does not predict guaranteed upside, execute trades, collect keys, request approvals, or custody assets.
                 </p>
                 <Link href="/sources" className={cn(buttonVariants({ variant: "secondary", className: "mt-4 w-fit" }))}>
                   Open data policy
@@ -260,133 +236,18 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
   );
 }
 
-function AiMemoPanel({ memo, memoError }: { memo: AiCardMemoResult | null; memoError: string | null }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-              <CardTitle>AI Deal Memo</CardTitle>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              OpenRouter receives structured Renaiss data only. Atlas validates the JSON, citations, safety language, and
-              confidence cap before showing it here.
-            </p>
-          </div>
-          <Badge variant={memo == null ? "warning" : "default"}>{memo == null ? "unavailable" : memo.validationStatus}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {memo == null ? (
-          <div className="rounded-md border border-dashed bg-secondary/30 p-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
-              <p className="text-sm font-medium">OpenRouter memo unavailable</p>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Renaiss card data loaded, but Atlas did not receive a schema-validated OpenRouter memo. No deterministic AI
-              fallback is shown.
-            </p>
-            {memoError == null ? null : (
-              <p className="mt-3 break-words rounded-md border bg-card p-3 font-mono text-xs text-muted-foreground">
-                {memoError}
-              </p>
-            )}
-          </div>
-        ) : (
-          <ValidatedMemo memo={memo} />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ValidatedMemo({ memo }: { memo: AiCardMemoResult }) {
-  const output = memo.output;
-
-  return (
-    <>
-      <div className="grid gap-2 rounded-md border bg-secondary/30 p-3 text-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={output.confidence === "high" ? "default" : "secondary"}>
-            Memo confidence: {output.confidence}
-          </Badge>
-          <Badge variant="outline">{memo.provider}</Badge>
-          <Badge variant="outline">{memo.model}</Badge>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Generated {formatDate(memo.createdAt)} from {memo.sourceIds.length} Renaiss citation
-          {memo.sourceIds.length === 1 ? "" : "s"}.
-        </p>
-      </div>
-
-      <div className="mt-4 rounded-md border bg-secondary/30 p-3">
-        <p className="text-sm font-medium">{output.nextAction.label}</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{output.recommendation}</p>
-      </div>
-      <section className="mt-4">
-        <h3 className="text-xs font-medium uppercase text-muted-foreground">Evidence</h3>
-        <ul className="mt-2 grid gap-2">
-          {output.evidence.map((item, index) => (
-            <li key={`${index}:${item}`} className="rounded-md border bg-card px-3 py-2 text-sm leading-6">
-              {item}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="mt-4">
-        <h3 className="text-xs font-medium uppercase text-muted-foreground">Risks</h3>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {output.risks.map((risk, index) => (
-            <Badge key={`${index}:${risk}`} variant="outline">
-              {risk}
-            </Badge>
-          ))}
-        </div>
-      </section>
-      {memo.safetyIssues.length === 0 ? null : (
-        <section className="mt-4">
-          <h3 className="text-xs font-medium uppercase text-muted-foreground">Validation Notes</h3>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {memo.safetyIssues.map((issue) => (
-              <Badge key={issue} variant="secondary">
-                {issue}
-              </Badge>
-            ))}
-          </div>
-        </section>
-      )}
-      <section className="mt-4">
-        <h3 className="text-xs font-medium uppercase text-muted-foreground">Citations</h3>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {output.sourcesUsed.map((source) => (
-            <Badge key={source} variant="secondary" className="font-mono">
-              {source.length > 28 ? `${source.slice(0, 18)}...` : source}
-            </Badge>
-          ))}
-        </div>
-      </section>
-      <p className="mt-4 rounded-md border border-dashed p-3 text-xs leading-5 text-muted-foreground">
-        {output.disclaimer}
-      </p>
-    </>
-  );
-}
-
 function scoreDescription(label: string) {
-  if (label === "Recent market activity") {
-    return "How much recent trade, listing, or last-sale activity Renaiss reports.";
+  if (label === "Market activity") {
+    return "How active this card looks from recent sales, listings, and last-sale recency.";
   }
-  if (label === "FMV confidence") {
-    return "How dependable the Renaiss FMV appears based on confidence and recency.";
+  if (label === "FMV reliability") {
+    return "How dependable the current FMV appears after weighing confidence, record coverage, and recency.";
   }
-  if (label === "Liquidity signal") {
-    return "How easy the card appears to evaluate from trades, FMV history, and confidence.";
+  if (label === "Liquidity") {
+    return "How much market signal exists to evaluate the card from trades, FMV history, and confidence.";
   }
-  if (label === "Evidence memo readiness") {
-    return "Whether there is enough Renaiss data for a useful AI memo. This is not a price prediction.";
+  if (label === "Collector read quality") {
+    return "How useful the on-demand collector read is likely to be from the available Renaiss data.";
   }
   return "A deterministic reading of Renaiss data.";
 }
@@ -416,6 +277,79 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3 rounded-md border bg-secondary/30 px-3 py-2 text-sm">
       <span className="min-w-0 truncate text-muted-foreground">{label}</span>
       <span className="font-mono">{value}</span>
+    </div>
+  );
+}
+
+function fmvRecordLabel(count: number) {
+  if (count === 0) return "No new records";
+  if (count === 1) return "1 record";
+  return `${count} records`;
+}
+
+function tradeKindLabel(kind: string) {
+  if (kind === "transaction") return "Sale";
+  if (kind === "listing") return "Listing";
+  return kind;
+}
+
+function tradeDetail(detail: string | null | undefined, gradeLabel: string | null | undefined) {
+  const parts = [gradeLabel, detail].filter((part): part is string => part != null && part.trim().length > 0);
+  return parts.join(" · ");
+}
+
+function FmvHistoryList({ points }: { points: RenaissOsCardIntelligence["fmvSeries"]["points"] }) {
+  return (
+    <div className="grid gap-2">
+      {points.map((point) => (
+        <article
+          key={point.t}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-md border bg-secondary/30 px-3 py-2"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{formatDate(point.t)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{fmvRecordLabel(point.n)}</p>
+          </div>
+          <p className="font-mono text-sm font-semibold">{formatUsdCents(point.usdCents)}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TradeHistoryList({
+  trades,
+  fallbackGrade
+}: {
+  trades: RenaissOsCardIntelligence["trades"];
+  fallbackGrade: string;
+}) {
+  return (
+    <div className="grid gap-2">
+      {trades.map((trade) => {
+        const detail = tradeDetail(trade.detail, trade.gradeLabel ?? fallbackGrade);
+
+        return (
+          <article
+            key={`${trade.source}:${trade.observedAt}:${trade.priceUsdCents}`}
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-md border bg-secondary/30 px-3 py-2"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium">{tradeKindLabel(trade.kind)}</p>
+                <Badge variant={trade.kind === "transaction" ? "default" : "secondary"}>
+                  {trade.kind === "transaction" ? "completed" : "active"}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Observed {formatDateTime(trade.observedAt)}</p>
+              {detail.length === 0 ? null : (
+                <p className="mt-1 truncate text-xs text-muted-foreground">{detail}</p>
+              )}
+            </div>
+            <p className="font-mono text-sm font-semibold">{formatUsdCents(trade.priceUsdCents)}</p>
+          </article>
+        );
+      })}
     </div>
   );
 }

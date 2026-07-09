@@ -16,7 +16,7 @@ Atlas does not collect private keys or seed phrases, request token approvals, ex
 The production path is:
 
 ```text
-Market Pulse -> Search Card -> Card Intelligence -> Graded Cert Lookup -> AI Deal Memo
+Market Pulse -> Search Card -> Card Intelligence -> Graded Cert Lookup -> AI Collector Memo
 ```
 
 ## Official API

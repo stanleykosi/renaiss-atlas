@@ -1,10 +1,10 @@
 import type { AiMemoInput } from "./schemas.js";
 
 const scoreDisplayNames: Record<string, string> = {
-  activity_velocity: "recent market activity",
-  liquidity: "liquidity signal",
-  deal: "memo readiness",
-  price_confidence: "FMV confidence"
+  activity_velocity: "market activity",
+  liquidity: "liquidity",
+  deal: "collector read quality",
+  price_confidence: "FMV reliability"
 };
 
 function jsonSafe(value: unknown): unknown {
@@ -25,7 +25,7 @@ function riskDisplayName(value: string): string {
   return value.replaceAll("_", " ");
 }
 
-function buildEvidenceDigest(input: AiMemoInput): Record<string, unknown> {
+function buildRenaissSignalDigest(input: AiMemoInput): Record<string, unknown> {
   return {
     card: {
       name: input.card.name,
@@ -53,32 +53,36 @@ function buildEvidenceDigest(input: AiMemoInput): Record<string, unknown> {
 
 export const CARD_MEMO_SYSTEM_PROMPT = [
   "You are Renaiss Atlas, a read-only collector intelligence copilot for Renaiss marketplace cards.",
+  "Your job is synthesis, not recap. Convert Renaiss data and deterministic Atlas scores into a useful collector read.",
   "Use only the structured Renaiss API data supplied by Atlas. Do not browse, infer hidden facts, invent data, or imply Atlas has another price feed.",
   "Low confidence means the available Renaiss records are thin or stale, not that another data source disagrees.",
-  "Write for a collector deciding what to inspect next. Do not give buy/sell instructions, guaranteed upside, price predictions, custody advice, lending advice, or execution steps.",
+  "Write for a collector deciding what to inspect next: whether to take the card seriously now, monitor it, or compare recent Renaiss trades.",
+  "Do not give buy/sell instructions, guaranteed upside, price predictions, custody advice, lending advice, or execution steps.",
   "Return exactly one JSON object matching the requested schema. Do not include markdown, prose outside JSON, or extra keys.",
   "sourcesUsed must contain only Renaiss citation IDs supplied in allowedSourceIds, and every recommendation must be grounded in those IDs.",
   "If data is thin, stale, or missing recent trades, say that plainly and keep confidence low or medium.",
+  "Avoid boilerplate. Do not repeat a score value unless you explain why it matters to the collector.",
   "The disclaimer must include the word Informational."
 ].join("\n");
 
 export function buildCardMemoUserPrompt(input: AiMemoInput): string {
   return [
-    "Create an AI Deal Memo from this Renaiss data.",
+    "Create an AI Collector Memo from this Renaiss data.",
     "Output schema:",
     JSON.stringify(
       {
-        recommendation: "1-3 sentences. Explain the next inspection decision, not a trade command.",
+        recommendation:
+          "Collector read. 1-3 sentences that state the practical interpretation: inspect now, compare recent trades, or monitor. Do not command a trade.",
         evidence: [
-          "3-5 bullets. Use concrete Renaiss data: confidence, recent trades, FMV history, last sale recency, and score meanings."
+          "Why this read. 2-4 distinct bullets using concrete Renaiss data: confidence, recent trades, FMV history, last-sale recency, and what Atlas scores imply."
         ],
         risks: [
-          "2-5 bullets. Include thin data, stale/missing sale data, or missing trades when present."
+          "What would weaken it. 1-4 distinct bullets. Include thin data, stale/missing sale data, or missing trades when present."
         ],
         confidence: "low | medium | high; never exceed what the evidence supports",
-        sourcesUsed: ["Only Renaiss citation IDs from evidenceDigest.allowedSourceIds"],
+        sourcesUsed: ["Only Renaiss citation IDs from renaissSignalDigest.allowedSourceIds"],
         nextAction: {
-          label: "Use one of: Review Renaiss data, Compare recent trades, Monitor until data improves",
+          label: "Use one of: Compare recent trades, Check FMV history, Monitor until data improves",
           type: "REVIEW_SOURCES"
         },
         disclaimer:
@@ -89,11 +93,12 @@ export function buildCardMemoUserPrompt(input: AiMemoInput): string {
     ),
     "Writing rules:",
     "- Never say Atlas used SNKRDUNK, PriceCharting, wallet data, mock demand, external comps, or marketplace connectors.",
-    "- Do not mention source counts, observation windows, source breakdowns, or upstream evidence feeds.",
-    "- Do not repeat a score name by itself; explain what it means in collector terms.",
+    "- Do not write a list that merely repeats score names or values. Explain the consequence of each signal.",
+    "- Do not use the same idea in recommendation, evidence, and risks. Each line must add something new.",
     "- If confidence is low or medium, describe why the memo is cautious.",
-    "- Keep the recommendation useful even when confidence is low: tell the collector what evidence to review next.",
-    "Evidence digest:",
-    JSON.stringify(jsonSafe(buildEvidenceDigest(input)), null, 2)
+    "- Keep the recommendation useful even when confidence is low: tell the collector which Renaiss signals to compare next.",
+    "- Prefer concrete language like 'compare recent trades before trusting the FMV' over generic language like 'check the dashboard.'",
+    "Renaiss signal digest:",
+    JSON.stringify(jsonSafe(buildRenaissSignalDigest(input)), null, 2)
   ].join("\n\n");
 }

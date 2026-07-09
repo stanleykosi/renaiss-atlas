@@ -41,7 +41,7 @@ export default function HomePage() {
             Renaiss Atlas
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-            Renaiss market data, deterministic Atlas scoring, and a validated OpenRouter memo layer for collectors who need
+            Renaiss market data, deterministic Atlas scoring, and on-demand collector reads for collectors who need
             fast conviction without keys, signatures, custody, or trade execution.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">

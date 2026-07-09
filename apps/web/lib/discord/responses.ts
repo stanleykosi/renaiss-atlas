@@ -78,20 +78,16 @@ async function cardDetailResponse(query: string, context: AtlasDiscordContext): 
   const intelligence = await getRenaissOsCardIntelligence(path.href);
   if (intelligence == null) return null;
 
-  const liquidityScore = intelligence.scores.find((score) => score.label === "Liquidity signal");
+  const liquidityScore = intelligence.scores.find((score) => score.label === "Liquidity");
   const cardPath = `/cards/${encodeURIComponent(encodeRenaissOsCardToken(intelligence.card.href))}`;
-  const memoLine =
-    intelligence.memo == null
-      ? "AI memo: unavailable; OpenRouter did not return validated output."
-      : `AI memo: ${intelligence.memo.validationStatus} via ${intelligence.memo.provider}; confidence ${intelligence.memo.output.confidence}.`;
 
   return messageResponse(
     [
       `**Atlas Card Intelligence: ${cleanLine(intelligence.card.name)}**`,
-      `FMV: ${formatUsdCents(intelligence.card.priceUsdCents)} | Confidence: ${intelligence.card.confidence ?? "low"}`,
+      `FMV: ${formatUsdCents(intelligence.card.priceUsdCents)} | Renaiss confidence: ${intelligence.card.confidence ?? "low"}`,
       renaissConfidenceSummary(intelligence.card),
       `Liquidity: ${liquidityScore == null ? "n/a" : `${Math.round(liquidityScore.value)} (${liquidityScore.confidence})`}`,
-      memoLine,
+      "Collector read: open the card page to run it on demand.",
       `Freshness: ${dateLabel(intelligence.card.updatedAt ?? intelligence.card.lastSaleAt)}.`,
       `Open: ${appLink(context, cardPath)}`
     ].join("\n")
@@ -123,7 +119,7 @@ async function cardSearchResponse(query: string, context: AtlasDiscordContext): 
     [
       `**Atlas Card Search: ${cleanLine(query)}**`,
       cards,
-      "Open a result for card intelligence and a validated OpenRouter memo."
+      "Open a result for card intelligence and an on-demand collector read."
     ].join("\n")
   );
 }

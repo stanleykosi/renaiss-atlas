@@ -60,7 +60,7 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
         subjectId: "official-card-001",
         actionType: "REVIEW_SOURCES",
         priority: 1,
-        title: "Review Renaiss data",
+        title: "Compare card signals",
         reason: "Use Renaiss confidence, trades, and FMV history before making collector decisions.",
         confidence: "medium",
         risks: [],
@@ -133,7 +133,7 @@ describe("AI memo safety", () => {
         risks: ["Renaiss data can still be thin."],
         confidence: "medium",
         sourcesUsed: ["renaiss-os:card:official-card-001"],
-        nextAction: { label: "Review Renaiss data", type: "REVIEW_SOURCES" },
+        nextAction: { label: "Compare recent trades", type: "REVIEW_SOURCES" },
         disclaimer: "Verify cited sources before acting."
       },
       memoInput()
@@ -193,7 +193,7 @@ describe("AI memo safety", () => {
           risks: ["Renaiss data can still be thin."],
           confidence: "medium",
           sourcesUsed: ["renaiss-os:card:official-card-001"],
-          nextAction: { label: "Review Renaiss data", type: "REVIEW_SOURCES" },
+          nextAction: { label: "Compare recent trades", type: "REVIEW_SOURCES" },
           disclaimer:
             "Informational only; Atlas does not request keys, approvals, custody, lending, or trade execution. Verify cited sources before acting."
         };
@@ -217,7 +217,7 @@ describe("AI memo safety", () => {
         risks: ["Renaiss data can still be thin."],
         confidence: "medium",
         sourcesUsed: ["renaiss-os:card:official-card-001"],
-        nextAction: { label: "Review Renaiss data", type: "REVIEW_SOURCES" },
+        nextAction: { label: "Compare recent trades", type: "REVIEW_SOURCES" },
         disclaimer:
           "Informational only; Atlas does not request keys, approvals, custody, lending, or trade execution. Verify cited sources before acting."
       },

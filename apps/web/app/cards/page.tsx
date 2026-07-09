@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Database, Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 
+import { CardArtwork } from "@/components/card-artwork";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +35,7 @@ export default async function CardsPage({ searchParams }: CardsPageProps) {
             <p className="font-mono text-xs text-primary uppercase">Search Card</p>
             <h1 className="mt-2 text-3xl font-semibold">Card Search</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Search Renaiss OS Index cards, then open card intelligence, deterministic scores, and a validated OpenRouter memo.
+              Search Renaiss cards, then open card intelligence, deterministic scores, and an on-demand collector read.
             </p>
           </div>
           <Link href="/market" className={cn(buttonVariants({ variant: "secondary" }))}>
@@ -73,17 +74,11 @@ export default async function CardsPage({ searchParams }: CardsPageProps) {
                 href={atlasCardHref(card)}
                 className="grid grid-cols-[76px_1fr] gap-3 rounded-md border bg-card p-3 transition-colors hover:bg-secondary"
               >
-                {(card.imageUrlThumb ?? card.imageUrl) == null ? (
-                  <div className="grid aspect-square place-items-center rounded-md border bg-secondary">
-                    <Database className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-                  </div>
-                ) : (
-                  <img
-                    src={card.imageUrlThumb ?? card.imageUrl ?? ""}
-                    alt=""
-                    className="aspect-square rounded-md border object-cover"
-                  />
-                )}
+                <CardArtwork
+                  src={card.imageUrlThumb ?? card.imageUrl}
+                  alt={`${card.name} card image`}
+                  className="bg-secondary"
+                />
                 <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant={card.confidence === "prime" || card.confidence === "high" ? "default" : "secondary"}>

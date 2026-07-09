@@ -183,7 +183,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
 
   const priceConfidence = result({
     value: official * 0.45 + sources * 0.22 + observations * 0.2 + recency * 0.13,
-    reasons: ["Atlas computes FMV confidence from Renaiss confidence and last-sale recency."],
+    reasons: ["Atlas computes FMV reliability from Renaiss confidence, record coverage, and last-sale recency."],
     riskFlags,
     inputs: {
       officialConfidence: input.confidence,
@@ -195,7 +195,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
 
   const activityVelocity = result({
     value: Math.max(activity, recency * 0.8),
-    reasons: ["Atlas computes recent market activity from Renaiss trades, listings, and last-sale recency."],
+    reasons: ["Atlas computes market activity from Renaiss trades, listings, and last-sale recency."],
     riskFlags: activity === 0 ? [...riskFlags, "trade_activity_missing"] : riskFlags,
     inputs: {
       tradeCount: input.trades?.length ?? 0,
@@ -205,7 +205,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
 
   const sourceConfidence = result({
     value: Math.max(breakdown, sources * 0.65 + totalObservations * 0.35),
-    reasons: ["Atlas computes evidence depth from Renaiss data coverage."],
+    reasons: ["Atlas computes data depth from Renaiss record coverage."],
     riskFlags,
     inputs: {
       sourceBreakdownCount: input.sourceBreakdown?.length ?? 0,
@@ -216,7 +216,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
 
   const liquidity = result({
     value: activity * 0.35 + sources * 0.2 + observations * 0.2 + fmvDepth * 0.15 + official * 0.1,
-    reasons: ["Atlas computes liquidity signal from Renaiss trades, FMV history, and confidence."],
+    reasons: ["Atlas computes liquidity from Renaiss trades, FMV history, and confidence."],
     riskFlags,
     inputs: {
       tradeCount: input.trades?.length ?? 0,
@@ -230,7 +230,7 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
   const deal = result({
     value: priceConfidence.value * 0.45 + liquidity.value * 0.35 + sourceConfidence.value * 0.2,
     reasons: [
-      "Evidence memo readiness measures whether Renaiss data is strong enough for a useful memo; it is not a price prediction or trade instruction."
+      "Collector read quality measures whether Renaiss data is strong enough for a useful AI read; it is not a price prediction or trade instruction."
     ],
     riskFlags,
     inputs: {

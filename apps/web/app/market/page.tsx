@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Database, Search, ShieldCheck, TrendingUp } from "lucide-react";
+import { ArrowRight, Search, ShieldCheck, TrendingUp } from "lucide-react";
 
+import { CardArtwork } from "@/components/card-artwork";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,8 +37,7 @@ export default async function MarketPage() {
             <p className="font-mono text-xs text-primary uppercase">Market Pulse</p>
             <h1 className="mt-2 text-3xl font-semibold">Renaiss OS Index Intelligence</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Renaiss index tiles, featured movers, and recent public trades. Atlas adds deterministic scores and validated
-              OpenRouter memos without exposing API secrets.
+              Renaiss index tiles, featured movers, recent trades, deterministic scores, and on-demand collector reads.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -118,17 +118,7 @@ export default async function MarketPage() {
                     href={atlasCardHref(card)}
                     className="grid grid-cols-[64px_1fr] gap-3 rounded-md border bg-secondary/30 p-3 transition-colors hover:bg-secondary"
                   >
-                    {(card.imageUrlThumb ?? card.imageUrl) == null ? (
-                      <div className="grid aspect-square place-items-center rounded-md border bg-card">
-                        <Database className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-                      </div>
-                    ) : (
-                      <img
-                        src={card.imageUrlThumb ?? card.imageUrl ?? ""}
-                        alt=""
-                        className="aspect-square rounded-md border object-cover"
-                      />
-                    )}
+                    <CardArtwork src={card.imageUrlThumb ?? card.imageUrl} alt={`${card.name} card image`} />
                     <div>
                       <div className="flex flex-wrap gap-2">
                         <Badge variant={card.confidence === "high" || card.confidence === "prime" ? "default" : "secondary"}>
@@ -158,18 +148,21 @@ export default async function MarketPage() {
                   <Link
                     key={trade.id}
                     href={atlasCardHref(trade.card)}
-                    className="rounded-md border bg-secondary/30 p-3 transition-colors hover:bg-secondary"
+                    className="grid grid-cols-[56px_1fr] gap-3 rounded-md border bg-secondary/30 p-3 transition-colors hover:bg-secondary"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium">{trade.card.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {trade.displayName} · {formatDate(trade.observedAt)}
-                        </p>
+                    <CardArtwork src={trade.card.imageUrl} alt={`${trade.card.name} card image`} />
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{trade.card.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {trade.kind === "transaction" ? "Sale" : "Listing"} · {formatDate(trade.observedAt)}
+                          </p>
+                        </div>
+                        <Badge variant={trade.kind === "transaction" ? "default" : "secondary"}>{trade.kind}</Badge>
                       </div>
-                      <Badge variant={trade.kind === "transaction" ? "default" : "secondary"}>{trade.kind}</Badge>
+                      <p className="mt-2 font-mono text-sm">{formatUsdCents(trade.priceUsdCents)}</p>
                     </div>
-                    <p className="mt-2 font-mono text-sm">{formatUsdCents(trade.priceUsdCents)}</p>
                   </Link>
                 ))}
               </div>

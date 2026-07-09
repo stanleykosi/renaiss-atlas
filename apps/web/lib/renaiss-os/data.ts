@@ -51,8 +51,6 @@ export type RenaissOsCardIntelligence = {
   trades: RenaissOsTradeRow[];
   fmvSeries: RenaissOsFmvSeriesResponse;
   scores: RenaissOsCardScoreView[];
-  memo: AiCardMemoResult | null;
-  memoError: string | null;
 };
 
 function centsToUsd(value: number | null | undefined): number | null {
@@ -141,11 +139,11 @@ function sourceRef(input: SourceRefInput): SourceRef {
 }
 
 function scoreLabel(scoreType: string): string {
-  if (scoreType === "activity_velocity") return "Recent market activity";
-  if (scoreType === "deal") return "Evidence memo readiness";
-  if (scoreType === "price_confidence") return "FMV confidence";
-  if (scoreType === "source_confidence") return "Evidence depth";
-  if (scoreType === "liquidity") return "Liquidity signal";
+  if (scoreType === "activity_velocity") return "Market activity";
+  if (scoreType === "deal") return "Collector read quality";
+  if (scoreType === "price_confidence") return "FMV reliability";
+  if (scoreType === "source_confidence") return "Data depth";
+  if (scoreType === "liquidity") return "Liquidity";
   return scoreType.replaceAll("_", " ");
 }
 
@@ -314,13 +312,13 @@ function buildMemoInput(input: {
       subjectId: input.card.id,
       actionType: "REVIEW_SOURCES",
       priority: 1,
-      title: "Review Renaiss data",
-      reason: "Review Renaiss confidence, trades, and FMV history before making any collector decision.",
+      title: "Compare card signals",
+      reason: "Compare confidence, recent trades, and FMV history before making any collector decision.",
       confidence,
       risks: riskFlags,
       sourceIds,
       cta: {
-        label: "Review Renaiss data",
+        label: "Compare card signals",
         href: "/sources"
       }
     }
@@ -406,19 +404,6 @@ export async function getRenaissOsCardIntelligence(token: string): Promise<Renai
     trades: trades.data.trades,
     fmvSeries: fmvSeries.data
   });
-  let memo: AiCardMemoResult | null = null;
-  let memoError: string | null = null;
-  try {
-    memo = await generateCardMemo(
-      buildMemoInput({
-        card: card.data,
-        trades: trades.data.trades,
-        fmvSeries: fmvSeries.data
-      })
-    );
-  } catch (error) {
-    memoError = error instanceof Error ? error.message : "OpenRouter memo generation failed.";
-  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -426,10 +411,28 @@ export async function getRenaissOsCardIntelligence(token: string): Promise<Renai
     card: card.data,
     trades: trades.data.trades,
     fmvSeries: fmvSeries.data,
-    scores,
-    memo,
-    memoError
+    scores
   };
+}
+
+export async function generateRenaissOsCardMemo(token: string): Promise<AiCardMemoResult | null> {
+  const path = parseRenaissOsCardHref(token);
+  if (path == null) return null;
+
+  const client = createRenaissOSClient();
+  const [card, trades, fmvSeries] = await Promise.all([
+    client.getCard(path.game, path.set, path.card),
+    client.getCardTrades(path.game, path.set, path.card, new URLSearchParams({ limit: "50", window: "365" })),
+    client.getCardFmvSeries(path.game, path.set, path.card, new URLSearchParams({ window: "365" }))
+  ]);
+
+  return generateCardMemo(
+    buildMemoInput({
+      card: card.data,
+      trades: trades.data.trades,
+      fmvSeries: fmvSeries.data
+    })
+  );
 }
 
 export async function lookupRenaissOsGradedCert(cert: string): Promise<RenaissOsGradedLookup> {
@@ -438,7 +441,19 @@ export async function lookupRenaissOsGradedCert(cert: string): Promise<RenaissOs
 
 export function renaissConfidenceSummary(card: RenaissOsCardDetail): string {
   const confidence = card.confidence ?? "unknown";
-  return `Renaiss confidence: ${confidence}.`;
+  if (confidence === "prime") {
+    return "Renaiss confidence is prime: this is the strongest Renaiss confidence tier for the current FMV.";
+  }
+  if (confidence === "high") {
+    return "Renaiss confidence is high: the FMV is strongly supported by current Renaiss records.";
+  }
+  if (confidence === "medium") {
+    return "Renaiss confidence is medium: the FMV is usable, but recent trades and FMV history should carry more weight.";
+  }
+  if (confidence === "low") {
+    return "Renaiss confidence is low: treat the FMV cautiously because the available records are thin or stale.";
+  }
+  return "Renaiss did not return a confidence tier for this card.";
 }
 
 export { centsToUsd };
