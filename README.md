@@ -124,7 +124,3 @@ pnpm discord:register
 - Deterministic scoring runs before AI.
 - AI output is Zod-validated, citation-checked, confidence-capped, and rejected when unsafe or unavailable.
 - Scores and Collector Briefs use official Renaiss OS confidence, source counts, observation counts, last sale timestamps, trades, FMV series, and source breakdown.
-
-## Deployment
-
-See [docs/deployment.md](docs/deployment.md).

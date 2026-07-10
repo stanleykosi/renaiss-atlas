@@ -1,15 +1,16 @@
+import type { RiskFlag } from "../constants/risk-flags.js";
+import type { RenaissOsConfidence, RenaissOsTradeKind } from "../schemas/renaiss-os.schema.js";
 import { hashPayload } from "../utils/hash.js";
 import type {
+  DeterministicScoreInputsByType,
   DeterministicStoredScore,
   ScoreConfidence,
   StoredCardScoreType
 } from "./deterministic.js";
 
-export type RenaissOsConfidence = "prime" | "high" | "medium" | "low" | null;
-
 export type RenaissOsTradeSignal = {
   observedAt: Date | string;
-  kind: "listing" | "transaction";
+  kind: RenaissOsTradeKind;
   priceUsdCents?: number | null;
   source?: string | null;
 };
@@ -43,7 +44,9 @@ export type RenaissOsCardScoringInput = {
 };
 
 export type RenaissOsCardScoreSet = {
-  scores: Partial<Record<StoredCardScoreType, DeterministicStoredScore>>;
+  scores: {
+    [ScoreType in StoredCardScoreType]: DeterministicStoredScore<ScoreType>;
+  };
 };
 
 const confidenceValue: Record<Exclude<RenaissOsConfidence, null>, number> = {
@@ -78,8 +81,11 @@ function officialConfidenceScore(value: RenaissOsConfidence): number {
   return value == null ? 18 : confidenceValue[value];
 }
 
-function scoreConfidence(value: number, confidenceRiskFlags: readonly string[]): ScoreConfidence {
-  if (confidenceRiskFlags.includes("official_confidence_low") || confidenceRiskFlags.includes("official_observations_missing")) {
+function scoreConfidence(value: number, confidenceRiskFlags: readonly RiskFlag[]): ScoreConfidence {
+  if (
+    confidenceRiskFlags.includes("official_confidence_low") ||
+    confidenceRiskFlags.includes("official_observations_missing")
+  ) {
     return value >= 50 ? "medium" : "low";
   }
   if (value >= 75) return "high";
@@ -108,10 +114,14 @@ function observationCoverage(observationCount: number | null | undefined): numbe
 function tradeActivityScore(trades: readonly RenaissOsTradeSignal[], now: Date): number {
   const transactions = trades.filter((trade) => trade.kind === "transaction");
   const listings = trades.filter((trade) => trade.kind === "listing");
-  const recentTransactions = transactions.filter((trade) => (ageDays(trade.observedAt, now) ?? 999) <= 30);
+  const recentTransactions = transactions.filter(
+    (trade) => (ageDays(trade.observedAt, now) ?? 999) <= 30
+  );
   const recentListings = listings.filter((trade) => (ageDays(trade.observedAt, now) ?? 999) <= 30);
 
-  return clamp(recentTransactions.length * 18 + recentListings.length * 8 + transactions.length * 4);
+  return clamp(
+    recentTransactions.length * 18 + recentListings.length * 8 + transactions.length * 4
+  );
 }
 
 function fmvDepthScore(points: readonly RenaissOsFmvPointSignal[]): number {
@@ -121,42 +131,39 @@ function fmvDepthScore(points: readonly RenaissOsFmvPointSignal[]): number {
 
 function sourceBreakdownScore(sourceBreakdown: readonly RenaissOsSourceBreakdownSignal[]): number {
   const sourceCount = new Set(sourceBreakdown.map((entry) => entry.source)).size;
-  const categoryCount = new Set(sourceBreakdown.map((entry) => entry.category).filter(Boolean)).size;
+  const categoryCount = new Set(sourceBreakdown.map((entry) => entry.category).filter(Boolean))
+    .size;
   const observations = sourceBreakdown.reduce((sum, entry) => sum + entry.count, 0);
   return clamp(sourceCount * 18 + categoryCount * 8 + observations * 2);
 }
 
-function result(input: {
+function stored<ScoreType extends StoredCardScoreType>(input: {
+  cardId: string;
+  scoreType: ScoreType;
+  computedAt: string;
   value: number;
   reasons: string[];
-  riskFlags: string[];
-  confidenceRiskFlags?: string[];
-  inputs: Record<string, unknown>;
-}) {
-  return {
+  riskFlags: RiskFlag[];
+  confidenceRiskFlags?: RiskFlag[];
+  inputs: DeterministicScoreInputsByType[ScoreType];
+}): DeterministicStoredScore<ScoreType> {
+  const score = {
     value: roundScore(input.value),
     confidence: scoreConfidence(input.value, input.confidenceRiskFlags ?? input.riskFlags),
     reasons: input.reasons,
     riskFlags: input.riskFlags,
     inputs: input.inputs
   };
-}
 
-function stored(input: {
-  cardId: string;
-  scoreType: StoredCardScoreType;
-  computedAt: string;
-  score: ReturnType<typeof result>;
-}): DeterministicStoredScore {
   return {
     entityType: "card",
     entityId: input.cardId,
     scoreType: input.scoreType,
-    ...input.score,
+    ...score,
     inputsHash: hashPayload({
       scoreType: input.scoreType,
       cardId: input.cardId,
-      inputs: input.score.inputs
+      inputs: score.inputs
     }),
     computedAt: input.computedAt
   };
@@ -165,6 +172,7 @@ function stored(input: {
 export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsCardScoreSet {
   const now = input.now ?? new Date();
   const computedAt = now.toISOString();
+  const effectiveRecencyAt = toDate(input.lastSaleAt ?? input.updatedAt)?.toISOString() ?? null;
   const official = officialConfidenceScore(input.confidence);
   const sources = sourceCoverage(input.sourceCount);
   const observations = observationCoverage(input.observationCount);
@@ -174,16 +182,18 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
   const fmvDepth = fmvDepthScore(input.fmvSeries ?? []);
   const priceCoverage = Math.max(observations, fmvDepth);
   const breakdown = sourceBreakdownScore(input.sourceBreakdown ?? []);
-  const fmvRiskFlags: string[] = [];
-  const coverageRiskFlags: string[] = [];
-  const activityRiskFlags: string[] = [];
-  const liquidityRiskFlags: string[] = [];
+  const fmvRiskFlags: RiskFlag[] = [];
+  const coverageRiskFlags: RiskFlag[] = [];
+  const activityRiskFlags: RiskFlag[] = [];
+  const liquidityRiskFlags: RiskFlag[] = [];
 
-  if (input.confidence === "low" || input.confidence == null) fmvRiskFlags.push("official_confidence_low");
+  if (input.confidence === "low" || input.confidence == null)
+    fmvRiskFlags.push("official_confidence_low");
   if ((input.observationCount ?? 0) === 0 && (input.fmvSeries?.length ?? 0) === 0) {
     fmvRiskFlags.push("official_observations_missing");
   }
-  if ((input.sourceCount ?? 0) <= 1 && (input.sourceBreakdown?.length ?? 0) <= 1) coverageRiskFlags.push("single_source_evidence");
+  if ((input.sourceCount ?? 0) <= 1 && (input.sourceBreakdown?.length ?? 0) <= 1)
+    coverageRiskFlags.push("single_source_evidence");
   if (ageDays(input.lastSaleAt, now) != null && (ageDays(input.lastSaleAt, now) ?? 0) > 90) {
     fmvRiskFlags.push("stale_last_sale");
     activityRiskFlags.push("stale_last_sale");
@@ -194,9 +204,20 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
     liquidityRiskFlags.push("trade_activity_missing");
   }
 
-  const priceConfidence = result({
-    value: official * 0.25 + sources * 0.12 + priceCoverage * 0.28 + fmvDepth * 0.2 + recency * 0.1 + activity * 0.05,
-    reasons: ["Atlas computes FMV reliability from Renaiss confidence, FMV depth, trade activity, and last-sale recency."],
+  const priceConfidence = stored({
+    cardId: input.cardId,
+    scoreType: "price_confidence",
+    computedAt,
+    value:
+      official * 0.25 +
+      sources * 0.12 +
+      priceCoverage * 0.28 +
+      fmvDepth * 0.2 +
+      recency * 0.1 +
+      activity * 0.05,
+    reasons: [
+      "Atlas computes FMV reliability from Renaiss confidence, FMV depth, trade activity, and last-sale recency."
+    ],
     riskFlags: [...fmvRiskFlags, ...coverageRiskFlags],
     confidenceRiskFlags: fmvRiskFlags,
     inputs: {
@@ -204,56 +225,80 @@ export function scoreRenaissOsCard(input: RenaissOsCardScoringInput): RenaissOsC
       sourceCount: input.sourceCount ?? null,
       observationCount: input.observationCount ?? null,
       fmvPointCount: input.fmvSeries?.length ?? 0,
-      lastSaleAt: input.lastSaleAt ?? null
+      fmvDepthScore: fmvDepth,
+      priceCoverageScore: priceCoverage,
+      tradeActivityScore: activity,
+      effectiveRecencyAt,
+      recencyScore: recency
     }
   });
 
-  const activityVelocity = result({
+  const activityVelocity = stored({
+    cardId: input.cardId,
+    scoreType: "activity_velocity",
+    computedAt,
     value: Math.max(activity, recency * 0.8),
-    reasons: ["Atlas computes market activity from Renaiss trades, listings, and last-sale recency."],
+    reasons: [
+      "Atlas computes market activity from Renaiss trades, listings, and last-sale recency."
+    ],
     riskFlags: activityRiskFlags,
     inputs: {
       tradeCount: input.trades?.length ?? 0,
-      lastSaleAt: input.lastSaleAt ?? null
+      tradeActivityScore: activity,
+      effectiveRecencyAt,
+      recencyScore: recency
     }
   });
 
-  const sourceConfidence = result({
+  const sourceConfidence = stored({
+    cardId: input.cardId,
+    scoreType: "source_confidence",
+    computedAt,
     value: Math.max(breakdown, sources * 0.65 + totalObservations * 0.35),
     reasons: ["Atlas computes data depth from Renaiss record coverage."],
     riskFlags: coverageRiskFlags,
     inputs: {
       sourceBreakdownCount: input.sourceBreakdown?.length ?? 0,
+      sourceBreakdownScore: breakdown,
       sourceCount: input.sourceCount ?? null,
       totalObservationCount: input.totalObservationCount ?? null
     }
   });
 
-  const liquidity = result({
-    value: activity * 0.45 + fmvDepth * 0.25 + recency * 0.1 + sources * 0.08 + observations * 0.07 + official * 0.05,
-    reasons: ["Atlas computes liquidity from Renaiss trade activity, FMV history depth, and recency."],
+  const liquidity = stored({
+    cardId: input.cardId,
+    scoreType: "liquidity",
+    computedAt,
+    value:
+      activity * 0.45 +
+      fmvDepth * 0.25 +
+      recency * 0.1 +
+      sources * 0.08 +
+      observations * 0.07 +
+      official * 0.05,
+    reasons: [
+      "Atlas computes liquidity from Renaiss trade activity, FMV history depth, and recency."
+    ],
     riskFlags: liquidityRiskFlags,
     inputs: {
       tradeCount: input.trades?.length ?? 0,
+      tradeActivityScore: activity,
       sourceCount: input.sourceCount ?? null,
       observationCount: input.observationCount ?? null,
       fmvPointCount: input.fmvSeries?.length ?? 0,
-      fmvDepth,
+      fmvDepthScore: fmvDepth,
+      effectiveRecencyAt,
+      recencyScore: recency,
       confidence: input.confidence
     }
   });
 
   return {
     scores: {
-      activity_velocity: stored({ cardId: input.cardId, scoreType: "activity_velocity", computedAt, score: activityVelocity }),
-      price_confidence: stored({ cardId: input.cardId, scoreType: "price_confidence", computedAt, score: priceConfidence }),
-      source_confidence: stored({
-        cardId: input.cardId,
-        scoreType: "source_confidence",
-        computedAt,
-        score: sourceConfidence
-      }),
-      liquidity: stored({ cardId: input.cardId, scoreType: "liquidity", computedAt, score: liquidity })
+      activity_velocity: activityVelocity,
+      price_confidence: priceConfidence,
+      source_confidence: sourceConfidence,
+      liquidity
     }
   };
 }

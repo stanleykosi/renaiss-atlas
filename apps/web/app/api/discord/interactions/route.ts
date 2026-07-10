@@ -13,7 +13,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function appUrl(): string {
-  return process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
+  const configured =
+    process.env["NEXT_PUBLIC_APP_URL"] ??
+    process.env["VERCEL_PROJECT_PRODUCTION_URL"] ??
+    process.env["VERCEL_URL"];
+  if (configured == null) return "http://localhost:3000";
+  return configured.startsWith("http") ? configured : `https://${configured}`;
 }
 
 export function GET() {
@@ -43,7 +48,8 @@ export async function POST(request: Request) {
 
   let interaction: DiscordInteraction;
   try {
-    interaction = parseDiscordInteraction(JSON.parse(rawBody));
+    const payload: unknown = JSON.parse(rawBody);
+    interaction = parseDiscordInteraction(payload);
   } catch {
     return NextResponse.json({ error: "Invalid Discord interaction payload." }, { status: 400 });
   }

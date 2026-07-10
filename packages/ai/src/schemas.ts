@@ -1,5 +1,4 @@
 import {
-  ActionTypeSchema,
   AiMemoOfficialEvidenceSchema,
   AiMemoInputSchema,
   AiMemoOutputSchema,
@@ -9,11 +8,9 @@ import {
 } from "@renaiss/core";
 import { z } from "zod";
 
-export const AiActionTypeSchema = ActionTypeSchema;
-
 export { AiMemoInputSchema, AiMemoOfficialEvidenceSchema, AiMemoOutputSchema };
 
-export const AiMemoValidationStatusSchema = z.literal("validated");
+const AiMemoValidationStatusSchema = z.literal("validated");
 
 export const AiCardMemoResultSchema = z.object({
   subject: AiMemoInputSchema.shape.subject,
@@ -28,5 +25,4 @@ export const AiCardMemoResultSchema = z.object({
 });
 
 export type { AiMemoInput, AiMemoOfficialEvidence, AiMemoOutput };
-export type AiMemoValidationStatus = z.infer<typeof AiMemoValidationStatusSchema>;
 export type AiCardMemoResult = z.infer<typeof AiCardMemoResultSchema>;

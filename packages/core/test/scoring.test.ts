@@ -49,10 +49,10 @@ describe("official Renaiss OS scoring", () => {
     ]);
 
     for (const score of Object.values(result.scores)) {
-      expect(score?.value).toBeGreaterThanOrEqual(0);
-      expect(score?.value).toBeLessThanOrEqual(100);
-      expect(score?.reasons.length).toBeGreaterThan(0);
-      expect(score?.inputsHash.length).toBeGreaterThan(0);
+      expect(score.value).toBeGreaterThanOrEqual(0);
+      expect(score.value).toBeLessThanOrEqual(100);
+      expect(score.reasons.length).toBeGreaterThan(0);
+      expect(score.inputsHash.length).toBeGreaterThan(0);
     }
   });
 
@@ -67,21 +67,21 @@ describe("official Renaiss OS scoring", () => {
       now
     });
 
-    expect(result.scores.price_confidence?.riskFlags).toContain("official_confidence_low");
-    expect(result.scores.price_confidence?.riskFlags).toContain("official_observations_missing");
-    expect(result.scores.source_confidence?.riskFlags).toContain("single_source_evidence");
+    expect(result.scores.price_confidence.riskFlags).toContain("official_confidence_low");
+    expect(result.scores.price_confidence.riskFlags).toContain("official_observations_missing");
+    expect(result.scores.source_confidence.riskFlags).toContain("single_source_evidence");
 
     for (const score of Object.values(result.scores)) {
-      expect(Number.isFinite(score?.value)).toBe(true);
-      expect(score?.value).toBeGreaterThanOrEqual(0);
-      expect(score?.value).toBeLessThanOrEqual(100);
+      expect(Number.isFinite(score.value)).toBe(true);
+      expect(score.value).toBeGreaterThanOrEqual(0);
+      expect(score.value).toBeLessThanOrEqual(100);
     }
   });
 
   it("lets heavy trade and FMV depth lift activity and liquidity even when Renaiss confidence is low", () => {
     const trades = Array.from({ length: 50 }, (_, index) => ({
       observedAt: new Date(now.getTime() - index * 60 * 60 * 1000).toISOString(),
-      kind: index % 2 === 0 ? "transaction" as const : "listing" as const,
+      kind: index % 2 === 0 ? ("transaction" as const) : ("listing" as const),
       priceUsdCents: 200000 + index,
       source: "renaissos_index"
     }));
@@ -112,11 +112,97 @@ describe("official Renaiss OS scoring", () => {
       now
     });
 
-    expect(result.scores.activity_velocity?.value).toBe(100);
-    expect(result.scores.activity_velocity?.confidence).toBe("high");
-    expect(result.scores.liquidity?.value).toBeGreaterThanOrEqual(75);
-    expect(result.scores.liquidity?.confidence).toBe("high");
-    expect(result.scores.price_confidence?.value).toBeGreaterThanOrEqual(50);
-    expect(result.scores.price_confidence?.confidence).toBe("medium");
+    expect(result.scores.activity_velocity.value).toBe(100);
+    expect(result.scores.activity_velocity.confidence).toBe("high");
+    expect(result.scores.liquidity.value).toBeGreaterThanOrEqual(75);
+    expect(result.scores.liquidity.confidence).toBe("high");
+    expect(result.scores.price_confidence.value).toBeGreaterThanOrEqual(50);
+    expect(result.scores.price_confidence.confidence).toBe("medium");
+  });
+
+  it("normalizes equivalent Date and ISO timestamp inputs before hashing", () => {
+    const baseInput = {
+      cardId: "stable-hash-card",
+      confidence: "medium" as const,
+      lastSaleAt: now.toISOString(),
+      now
+    };
+
+    const fromIso = scoreRenaissOsCard(baseInput);
+    const fromDate = scoreRenaissOsCard({
+      ...baseInput,
+      lastSaleAt: new Date(baseInput.lastSaleAt)
+    });
+
+    expect(fromDate.scores.price_confidence.inputs.effectiveRecencyAt).toBe(now.toISOString());
+    expect(fromDate.scores.price_confidence.inputsHash).toBe(
+      fromIso.scores.price_confidence.inputsHash
+    );
+    expect(fromDate.scores.activity_velocity.inputsHash).toBe(
+      fromIso.scores.activity_velocity.inputsHash
+    );
+  });
+
+  it("hashes updatedAt when it supplies the effective recency", () => {
+    const fresh = scoreRenaissOsCard({
+      cardId: "updated-at-recency-card",
+      confidence: "medium",
+      lastSaleAt: null,
+      updatedAt: now.toISOString(),
+      now
+    });
+    const stale = scoreRenaissOsCard({
+      cardId: "updated-at-recency-card",
+      confidence: "medium",
+      lastSaleAt: null,
+      updatedAt: "2025-01-01T00:00:00.000Z",
+      now
+    });
+
+    expect(fresh.scores.activity_velocity.value).not.toBe(stale.scores.activity_velocity.value);
+    expect(fresh.scores.activity_velocity.inputsHash).not.toBe(
+      stale.scores.activity_velocity.inputsHash
+    );
+    expect(fresh.scores.price_confidence.inputsHash).not.toBe(
+      stale.scores.price_confidence.inputsHash
+    );
+    expect(fresh.scores.liquidity.inputsHash).not.toBe(stale.scores.liquidity.inputsHash);
+  });
+
+  it("hashes value-affecting trade and FMV depth even when array counts match", () => {
+    const common = {
+      cardId: "evidence-shape-card",
+      confidence: "medium" as const,
+      sourceCount: 2,
+      observationCount: 4,
+      lastSaleAt: now.toISOString(),
+      now
+    };
+    const active = scoreRenaissOsCard({
+      ...common,
+      trades: [{ observedAt: now.toISOString(), kind: "transaction" }],
+      fmvSeries: [{ t: now.toISOString(), usdCents: 10_000, n: 1 }]
+    });
+    const deeperButInactive = scoreRenaissOsCard({
+      ...common,
+      trades: [{ observedAt: "2025-01-01T00:00:00.000Z", kind: "listing" }],
+      fmvSeries: [{ t: now.toISOString(), usdCents: 10_000, n: 20 }]
+    });
+
+    expect(active.scores.price_confidence.inputs.fmvPointCount).toBe(
+      deeperButInactive.scores.price_confidence.inputs.fmvPointCount
+    );
+    expect(active.scores.activity_velocity.inputs.tradeCount).toBe(
+      deeperButInactive.scores.activity_velocity.inputs.tradeCount
+    );
+    expect(active.scores.price_confidence.value).not.toBe(
+      deeperButInactive.scores.price_confidence.value
+    );
+    expect(active.scores.price_confidence.inputsHash).not.toBe(
+      deeperButInactive.scores.price_confidence.inputsHash
+    );
+    expect(active.scores.liquidity.inputsHash).not.toBe(
+      deeperButInactive.scores.liquidity.inputsHash
+    );
   });
 });

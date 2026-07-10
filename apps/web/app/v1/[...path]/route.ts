@@ -33,6 +33,9 @@ function errorResponse(error: unknown) {
   }
 
   if (error instanceof RenaissOsClientError) {
+    if (error.status >= 500) {
+      console.error(`[renaiss-os:proxy] Upstream request failed with ${error.status}.`);
+    }
     return NextResponse.json(
       {
         error: error.message
@@ -47,6 +50,8 @@ function errorResponse(error: unknown) {
     );
   }
 
+  const reason = error instanceof Error ? `${error.name}: ${error.message}` : "non-Error rejection";
+  console.error(`[renaiss-os:proxy] Unexpected request failure. ${reason.replace(/\s+/g, " ")}`);
   return NextResponse.json({ error: "Renaiss OS proxy request failed." }, { status: 502 });
 }
 
@@ -55,7 +60,12 @@ function streamHeaders(upstream: Response): Headers {
   headers.set("Content-Type", upstream.headers.get("content-type") ?? "text/event-stream");
   headers.set("Cache-Control", "no-store");
 
-  for (const name of ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]) {
+  for (const name of [
+    "retry-after",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset"
+  ]) {
     const value = upstream.headers.get(name);
     if (value != null) headers.set(name, value);
   }
@@ -77,7 +87,10 @@ export async function GET(request: Request, context: ProxyRouteContext) {
     if (match.stream) {
       const upstream = await client.fetchStream(match.remotePath, searchParams);
       if (!upstream.ok) {
-        return NextResponse.json({ error: "Renaiss OS stream failed." }, { status: upstream.status });
+        return NextResponse.json(
+          { error: "Renaiss OS stream failed." },
+          { status: upstream.status }
+        );
       }
       return new Response(upstream.body, {
         status: upstream.status,

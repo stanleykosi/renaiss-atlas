@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  BadgeCheck,
-  BarChart3,
-  FileSearch,
-  ShieldCheck
-} from "lucide-react";
+import type { RiskFlag } from "@renaiss/core";
+import { ArrowLeft, BadgeCheck, BarChart3, FileSearch, ShieldCheck } from "lucide-react";
 
 import { CardArtwork } from "@/components/card-artwork";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  decodeRenaissOsCardToken,
   formatUsdCents,
   getRenaissOsCardIntelligence,
   type RenaissOsCardIntelligence
@@ -22,6 +18,14 @@ import { formatGradeLabel } from "@/lib/renaiss-os/display";
 import { cn } from "@/lib/utils";
 
 import { CollectorBriefCard } from "./collector-brief-card";
+
+const RISK_FLAG_LABELS = {
+  official_confidence_low: "Low confidence",
+  official_observations_missing: "Missing official observations",
+  single_source_evidence: "Single-source evidence",
+  stale_last_sale: "Stale last sale",
+  trade_activity_missing: "No recent trade rows"
+} satisfies Record<RiskFlag, string>;
 
 type CardDetailPageProps = {
   params: Promise<{ tokenId: string }>;
@@ -56,17 +60,15 @@ function formatScore(value: number) {
   return value.toFixed(0);
 }
 
-function confidenceText(value: string | null | undefined) {
+function confidenceText(value: RenaissOsCardIntelligence["card"]["confidence"]) {
   return value ?? "unknown";
 }
 
 export default async function CardDetailPage({ params }: CardDetailPageProps) {
   const { tokenId } = await params;
-  const intelligence = await getRenaissOsCardIntelligence(decodeURIComponent(tokenId));
-
-  if (intelligence == null) {
-    notFound();
-  }
+  const path = decodeRenaissOsCardToken(tokenId);
+  if (path == null) notFound();
+  const intelligence = await getRenaissOsCardIntelligence(path);
 
   const { card, trades, fmvSeries, scores } = intelligence;
   const recentFmv = fmvSeries.points.slice(-8).reverse();
@@ -83,13 +85,17 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
           />
 
           <div className="order-1 lg:order-2">
-            <Link href="/cards" className={cn(buttonVariants({ variant: "ghost", className: "-ml-2 h-8 px-2" }))}>
+            <Link
+              href="/cards"
+              className={cn(buttonVariants({ variant: "ghost", className: "-ml-2 h-8 px-2" }))}
+            >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Search
             </Link>
             <h1 className="mt-4 text-3xl font-semibold tracking-normal">{card.name}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {card.setName ?? "Unknown set"} #{card.cardNumber ?? "N/A"} · {card.language ?? "Unknown language"}
+              {card.setName ?? "Unknown set"} #{card.cardNumber ?? "N/A"} ·{" "}
+              {card.language ?? "Unknown language"}
             </p>
           </div>
 
@@ -133,17 +139,25 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-medium capitalize">{score.label}</p>
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">{scoreDescription(score.label)}</p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {scoreDescription(score.label)}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-xl font-semibold">{formatScore(score.value)}</p>
-                          <Badge variant={score.confidence === "high" ? "default" : "secondary"}>{score.confidence}</Badge>
+                          <p className="font-mono text-xl font-semibold">
+                            {formatScore(score.value)}
+                          </p>
+                          <Badge variant={score.confidence === "high" ? "default" : "secondary"}>
+                            {score.confidence}
+                          </Badge>
                         </div>
                       </div>
-                      <p className="mt-3 text-xs leading-5 text-muted-foreground">{score.reasons[0]}</p>
-                      {visibleRiskFlags(score.riskFlags).length === 0 ? null : (
+                      <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                        {score.reasons[0]}
+                      </p>
+                      {score.riskFlags.length === 0 ? null : (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {visibleRiskFlags(score.riskFlags).map((flag) => (
+                          {score.riskFlags.map((flag) => (
                             <Badge key={flag} variant="outline">
                               {riskFlagLabel(flag)}
                             </Badge>
@@ -161,12 +175,16 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                 <CardHeader>
                   <CardTitle>FMV History</CardTitle>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Daily fair-market-value points with the number of Renaiss records behind each point.
+                    Daily fair-market-value points with the number of Renaiss records behind each
+                    point.
                   </p>
                 </CardHeader>
                 <CardContent>
                   {recentFmv.length === 0 ? (
-                    <EmptyState title="No FMV history yet" detail="Renaiss returned no FMV history points for this card." />
+                    <EmptyState
+                      title="No FMV history yet"
+                      detail="Renaiss returned no FMV history points for this card."
+                    />
                   ) : (
                     <FmvHistoryList points={recentFmv} />
                   )}
@@ -182,7 +200,10 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                 </CardHeader>
                 <CardContent>
                   {trades.length === 0 ? (
-                    <EmptyState title="No recent trade rows" detail="Renaiss returned no recent trade rows for this card." />
+                    <EmptyState
+                      title="No recent trade rows"
+                      detail="Renaiss returned no recent trade rows for this card."
+                    />
                   ) : (
                     <TradeHistoryList trades={trades.slice(0, 8)} fallbackGrade={card.gradeLabel} />
                   )}
@@ -209,7 +230,8 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
                   </button>
                 </form>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Lookup uses `/v1/graded/:cert` through the Atlas backend proxy. No wallet signature or private key is ever requested.
+                  Lookup uses `/v1/graded/:cert` through the Atlas backend proxy. No wallet
+                  signature or private key is ever requested.
                 </p>
               </CardContent>
             </Card>
@@ -223,7 +245,9 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Atlas uses Renaiss API data and deterministic scores before AI. It does not predict guaranteed upside, execute trades, collect keys, request approvals, or custody assets.
+                  Atlas uses Renaiss API data and deterministic scores before AI. It does not
+                  predict guaranteed upside, execute trades, collect keys, request approvals, or
+                  custody assets.
                 </p>
               </CardContent>
             </Card>
@@ -234,7 +258,7 @@ export default async function CardDetailPage({ params }: CardDetailPageProps) {
   );
 }
 
-function scoreDescription(label: string) {
+function scoreDescription(label: RenaissOsCardIntelligence["scores"][number]["label"]) {
   if (label === "Market activity") {
     return "How active this card looks from recent sales, listings, and last-sale recency.";
   }
@@ -247,15 +271,8 @@ function scoreDescription(label: string) {
   return "A deterministic reading of Renaiss data.";
 }
 
-function visibleRiskFlags(flags: string[]) {
-  return flags.filter((flag) => flag !== "single_source_evidence" && flag !== "official_observations_missing");
-}
-
-function riskFlagLabel(flag: string) {
-  if (flag === "official_confidence_low") return "Low confidence";
-  if (flag === "stale_last_sale") return "Stale last sale";
-  if (flag === "trade_activity_missing") return "No recent trade rows";
-  return flag.replaceAll("_", " ");
+function riskFlagLabel(flag: RiskFlag) {
+  return RISK_FLAG_LABELS[flag];
 }
 
 function HeaderMetric({ label, value }: { label: string; value: string }) {
@@ -282,19 +299,23 @@ function fmvRecordLabel(count: number) {
   return `${count} records`;
 }
 
-function tradeKindLabel(kind: string) {
-  if (kind === "transaction") return "Sale";
-  if (kind === "listing") return "Listing";
-  return kind;
+function tradeKindLabel(kind: RenaissOsCardIntelligence["trades"][number]["kind"]) {
+  return kind === "transaction" ? "Sale" : "Listing";
 }
 
 function tradeDetail(
   detail: string | null | undefined,
-  grade: { company?: string | null | undefined; grade?: string | null | undefined; gradeLabel?: string | null | undefined }
+  grade: {
+    company?: string | null | undefined;
+    grade?: string | null | undefined;
+    gradeLabel?: string | null | undefined;
+  }
 ) {
   const displayGrade = formatGradeLabel(grade);
   const usableGrade = displayGrade === "Unknown grade" ? null : displayGrade;
-  const parts = [usableGrade, detail].filter((part): part is string => part != null && part.trim().length > 0);
+  const parts = [usableGrade, detail].filter(
+    (part): part is string => part != null && part.trim().length > 0
+  );
   return parts.join(" · ");
 }
 
@@ -345,7 +366,9 @@ function TradeHistoryList({
                   {trade.kind === "transaction" ? "completed" : "active"}
                 </Badge>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Observed {formatDateTime(trade.observedAt)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Observed {formatDateTime(trade.observedAt)}
+              </p>
               {detail.length === 0 ? null : (
                 <p className="mt-1 truncate text-xs text-muted-foreground">{detail}</p>
               )}

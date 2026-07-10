@@ -16,5 +16,7 @@ test("opens card intelligence", async ({ page }) => {
 test("shows a not-found state for an unsupported card token", async ({ page }) => {
   await page.goto("/cards/not-a-renaiss-card-token");
 
-  await expect(page.getByRole("heading", { name: "This page could not be found." })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Card not found." })).toBeVisible({
+    timeout: 15_000
+  });
 });

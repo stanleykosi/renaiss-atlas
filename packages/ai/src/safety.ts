@@ -1,4 +1,4 @@
-import { minConfidence, type ConfidenceLabel } from "@renaiss/core";
+import { minConfidence, RISK_FLAGS, type ConfidenceLabel, type RiskFlag } from "@renaiss/core";
 
 import { AiMemoOutputSchema, type AiMemoInput, type AiMemoOutput } from "./schemas.js";
 
@@ -21,13 +21,7 @@ export const PROHIBITED_AI_PHRASES = [
   "custody your wallet"
 ] as const;
 
-const HIGH_RISK_FLAGS = new Set([
-  "official_confidence_low",
-  "official_observations_missing",
-  "single_source_evidence",
-  "stale_last_sale",
-  "trade_activity_missing"
-]);
+const HIGH_RISK_FLAGS: ReadonlySet<RiskFlag> = new Set(RISK_FLAGS);
 
 function unique(values: string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
@@ -59,7 +53,11 @@ export function confidenceCapForInput(input: AiMemoInput): ConfidenceLabel {
     cap = minConfidence(cap, "low");
   }
 
-  if (input.freshness.some((freshness) => freshness.status === "stale" || freshness.status === "missing")) {
+  if (
+    input.freshness.some(
+      (freshness) => freshness.status === "stale" || freshness.status === "missing"
+    )
+  ) {
     cap = minConfidence(cap, "medium");
   }
 
@@ -70,10 +68,10 @@ export function confidenceCapForInput(input: AiMemoInput): ConfidenceLabel {
   return cap;
 }
 
-export function capMemoConfidence(input: {
+export function capMemoConfidence(input: { memo: AiMemoOutput; evidence: AiMemoInput }): {
   memo: AiMemoOutput;
-  evidence: AiMemoInput;
-}): { memo: AiMemoOutput; issues: string[] } {
+  issues: string[];
+} {
   const cap = confidenceCapForInput(input.evidence);
   const cappedConfidence = minConfidence(input.memo.confidence, cap);
   const issues =
@@ -99,16 +97,19 @@ export function capMemoConfidence(input: {
   };
 }
 
-export function validateAiMemoOutput(output: unknown, input: AiMemoInput):
-  | { success: true; memo: AiMemoOutput; issues: string[] }
-  | { success: false; issues: string[] } {
+export function validateAiMemoOutput(
+  output: unknown,
+  input: AiMemoInput
+): { success: true; memo: AiMemoOutput; issues: string[] } | { success: false; issues: string[] } {
   const parsed = AiMemoOutputSchema.safeParse(output);
   if (!parsed.success) {
     return { success: false, issues: ["schema_validation_failed"] };
   }
 
   const allowedSources = new Set(input.sources.map((source) => source.id));
-  const unknownSources = parsed.data.sourcesUsed.filter((sourceId) => !allowedSources.has(sourceId));
+  const unknownSources = parsed.data.sourcesUsed.filter(
+    (sourceId) => !allowedSources.has(sourceId)
+  );
   const issues: string[] = [];
 
   if (unknownSources.length > 0) {

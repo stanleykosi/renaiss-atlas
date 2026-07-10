@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   AiMemoGenerationError,
+  buildCardMemoUserPrompt,
   confidenceCapForInput,
   generateCardMemo,
   hashAiMemoInput,
+  OpenRouterProvider,
   validateAiMemoOutput,
   type AiMemoInput,
   type AiProvider
@@ -61,7 +63,8 @@ function memoInput(overrides: Partial<AiMemoInput> = {}): AiMemoInput {
         actionType: "REVIEW_SOURCES",
         priority: 1,
         title: "Compare card signals",
-        reason: "Use Renaiss confidence, trades, and FMV history before making collector decisions.",
+        reason:
+          "Use Renaiss confidence, trades, and FMV history before making collector decisions.",
         confidence: "medium",
         risks: [],
         sourceIds: ["renaiss-os:card:official-card-001"]
@@ -154,6 +157,20 @@ describe("Collector Brief safety", () => {
     ).toBe("low");
   });
 
+  it("includes every deterministic risk flag in the model prompt", () => {
+    const base = memoInput();
+    const riskFlags = ["single_source_evidence", "official_observations_missing"] as const;
+    const prompt = buildCardMemoUserPrompt(
+      memoInput({
+        scores: base.scores.map((score) => ({ ...score, riskFlags: [...riskFlags] })),
+        riskFlags: [...riskFlags]
+      })
+    );
+
+    expect(prompt.match(/single-source evidence/g)).toHaveLength(2);
+    expect(prompt.match(/missing official observations/g)).toHaveLength(2);
+  });
+
   it("rejects provider output when it is unsafe", async () => {
     const unsafeProvider: AiProvider = {
       name: "test-provider",
@@ -207,6 +224,44 @@ describe("Collector Brief safety", () => {
 
     expect(result.validationStatus).toBe("validated");
     expect(result.provider).toBe("openrouter");
+  });
+
+  it("preserves the provider failure as the domain error cause", async () => {
+    const providerFailure = new Error("provider unavailable");
+    const failingProvider: AiProvider = {
+      name: "openrouter",
+      model: "test-model",
+      async generateCardMemo() {
+        throw providerFailure;
+      }
+    };
+
+    await expect(
+      generateCardMemo(memoInput(), { provider: failingProvider })
+    ).rejects.toMatchObject({
+      name: "AiMemoGenerationError",
+      publicMessage: "OpenRouter memo generation failed.",
+      cause: providerFailure
+    });
+  });
+
+  it("rejects fenced output instead of salvaging provider JSON", async () => {
+    const provider = new OpenRouterProvider({
+      apiKey: "test-key",
+      model: "test-model",
+      fetchFn: async () =>
+        Response.json({
+          choices: [{ message: { content: '```json\n{"recommendation":"not accepted"}\n```' } }]
+        })
+    });
+
+    await expect(
+      provider.generateCardMemo({
+        input: memoInput(),
+        systemPrompt: "system",
+        userPrompt: "user"
+      })
+    ).rejects.toBeInstanceOf(SyntaxError);
   });
 
   it("allows boundary disclaimers to mention trade execution without treating them as advice", () => {

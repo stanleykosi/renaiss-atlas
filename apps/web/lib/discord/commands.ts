@@ -3,7 +3,7 @@ const optionType = {
   string: 3
 } as const;
 
-export const atlasApplicationCommand = {
+const atlasApplicationCommand = {
   name: "atlas",
   description: "Renaiss Atlas collector intelligence",
   type: 1,

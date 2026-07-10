@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-function cleanEnvString(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
-  return trimmed.length === 0 ? undefined : trimmed;
-}
+import { cleanEnvString } from "@renaiss/core";
 
 const EmptyToUndefined = z.preprocess(cleanEnvString, z.string().optional());
 
@@ -20,20 +16,34 @@ type RedisConfig = {
   token: string;
 };
 
-const RedisResponseSchema = z
-  .object({
-    result: z.unknown().optional(),
-    error: z.string().optional()
-  })
-  .passthrough();
+type RedisCommand =
+  | readonly [operation: "GET", key: string]
+  | readonly [operation: "SET", key: string, value: string, expiryMode: "EX", ttlSeconds: string];
+
+type RedisCommandResult = { status: "disabled" } | { status: "success"; value: unknown };
+
+export type RedisReadResult<Value> =
+  | { status: "disabled" | "miss" }
+  | { status: "hit"; value: Value }
+  | { status: "error"; error: Error };
+
+export type RedisWriteResult =
+  | { status: "disabled" | "written" }
+  | { status: "error"; error: Error };
+
+const RedisResponseSchema = z.object({
+  result: z.unknown().optional(),
+  error: z.string().optional()
+});
 
 function redisConfig(env: Record<string, string | undefined> = process.env): RedisConfig | null {
-  const parsed = RedisEnvSchema.safeParse(env);
-  if (!parsed.success) return null;
-
-  const url = parsed.data.UPSTASH_REDIS_REST_URL;
-  const token = parsed.data.UPSTASH_REDIS_REST_TOKEN;
-  if (url == null || token == null) return null;
+  const parsed = RedisEnvSchema.parse(env);
+  const url = parsed.UPSTASH_REDIS_REST_URL;
+  const token = parsed.UPSTASH_REDIS_REST_TOKEN;
+  if (url == null && token == null) return null;
+  if (url == null || token == null) {
+    throw new Error("Upstash Redis configuration requires both URL and token.");
+  }
 
   return {
     url: url.replace(/\/+$/, ""),
@@ -41,9 +51,16 @@ function redisConfig(env: Record<string, string | undefined> = process.env): Red
   };
 }
 
-async function redisCommand(command: unknown[], env?: Record<string, string | undefined>): Promise<unknown> {
+function asError(error: unknown, message: string): Error {
+  return error instanceof Error ? error : new Error(message, { cause: error });
+}
+
+async function redisCommand(
+  command: RedisCommand,
+  env?: Record<string, string | undefined>
+): Promise<RedisCommandResult> {
   const config = redisConfig(env);
-  if (config == null) return null;
+  if (config == null) return { status: "disabled" };
 
   const response = await fetch(config.url, {
     method: "POST",
@@ -55,35 +72,60 @@ async function redisCommand(command: unknown[], env?: Record<string, string | un
     cache: "no-store"
   });
 
-  const parsed = RedisResponseSchema.safeParse(await response.json().catch(() => null));
-  if (!response.ok || !parsed.success || parsed.data.error != null) return null;
-  return parsed.data.result ?? null;
-}
+  if (!response.ok) {
+    throw new Error(`Upstash Redis request failed with ${response.status}.`);
+  }
 
-export async function redisGetString(key: string, env?: Record<string, string | undefined>): Promise<string | null> {
-  const result = await redisCommand(["GET", key], env).catch(() => null);
-  return typeof result === "string" ? result : null;
+  const parsed = RedisResponseSchema.parse(await response.json());
+  if (parsed.error != null) {
+    throw new Error("Upstash Redis returned an operation error.");
+  }
+
+  return { status: "success", value: parsed.result ?? null };
 }
 
 export async function redisSetJson(
   key: string,
-  value: unknown,
+  value: object,
   ttlSeconds: number,
   env?: Record<string, string | undefined>
-): Promise<void> {
-  if (ttlSeconds <= 0) return;
-  await redisCommand(["SET", key, JSON.stringify(value), "EX", String(ttlSeconds)], env).catch(() => null);
+): Promise<RedisWriteResult> {
+  if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
+    throw new RangeError("Redis JSON TTL must be a positive integer.");
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    const result = await redisCommand(["SET", key, serialized, "EX", String(ttlSeconds)], env);
+    if (result.status === "disabled") return result;
+    if (result.value !== "OK") {
+      throw new Error("Upstash Redis returned an unexpected SET result.");
+    }
+    return { status: "written" };
+  } catch (error) {
+    return { status: "error", error: asError(error, "Redis JSON write failed.") };
+  }
 }
 
-export async function redisGetJson<T>(
+export async function redisGetJson<Output>(
   key: string,
+  schema: z.ZodType<Output, z.ZodTypeDef, unknown>,
   env?: Record<string, string | undefined>
-): Promise<T | null> {
-  const value = await redisGetString(key, env);
-  if (value == null) return null;
+): Promise<RedisReadResult<Output>> {
   try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
+    const result = await redisCommand(["GET", key], env);
+    if (result.status === "disabled") return result;
+    if (result.value == null) return { status: "miss" };
+    if (typeof result.value !== "string") {
+      throw new Error("Upstash Redis returned an unexpected GET result.");
+    }
+    const json: unknown = JSON.parse(result.value);
+    const parsed = schema.safeParse(json);
+    if (!parsed.success) {
+      throw new Error("Cached Redis JSON failed schema validation.", { cause: parsed.error });
+    }
+    return { status: "hit", value: parsed.data };
+  } catch (error) {
+    return { status: "error", error: asError(error, "Redis JSON read failed.") };
   }
 }

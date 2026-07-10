@@ -1,6 +1,5 @@
 import {
   atlasCardHref,
-  encodeRenaissOsCardToken,
   formatUsdCents,
   getRenaissOsCardIntelligence,
   getRenaissOsMarketPulse,
@@ -19,7 +18,7 @@ import {
   type DiscordInteractionResponse
 } from "./interactions";
 
-export type AtlasDiscordContext = {
+type AtlasDiscordContext = {
   appUrl: string;
 };
 
@@ -47,7 +46,9 @@ async function marketResponse(context: AtlasDiscordContext): Promise<DiscordInte
   const pulse = await getRenaissOsMarketPulse();
   const indices = pulse.indices
     .slice(0, 3)
-    .map((index) => `- ${index.label}: ${index.value.toFixed(1)} (${deltaLabel(index.deltas.d7)} 7d)`)
+    .map(
+      (index) => `- ${index.label}: ${index.value.toFixed(1)} (${deltaLabel(index.deltas.d7)} 7d)`
+    )
     .join("\n");
   const featured = pulse.featured
     .slice(0, 3)
@@ -79,15 +80,16 @@ async function marketResponse(context: AtlasDiscordContext): Promise<DiscordInte
   );
 }
 
-async function cardDetailResponse(query: string, context: AtlasDiscordContext): Promise<DiscordInteractionResponse | null> {
+async function cardDetailResponse(
+  query: string,
+  context: AtlasDiscordContext
+): Promise<DiscordInteractionResponse | null> {
   const path = parseRenaissOsCardHref(query);
   if (path == null) return null;
 
-  const intelligence = await getRenaissOsCardIntelligence(path.href);
-  if (intelligence == null) return null;
+  const intelligence = await getRenaissOsCardIntelligence(path);
 
   const liquidityScore = intelligence.scores.find((score) => score.label === "Liquidity");
-  const cardPath = `/cards/${encodeURIComponent(encodeRenaissOsCardToken(intelligence.card.href))}`;
 
   return messageResponse(
     [
@@ -97,21 +99,26 @@ async function cardDetailResponse(query: string, context: AtlasDiscordContext): 
       `Liquidity: ${liquidityScore == null ? "n/a" : `${Math.round(liquidityScore.value)} (${liquidityScore.confidence})`}`,
       "Collector Brief: open the card page to generate it on demand.",
       `Freshness: ${dateLabel(intelligence.card.updatedAt ?? intelligence.card.lastSaleAt)}.`,
-      `Open: ${appLink(context, cardPath)}`
+      `Open: ${appLink(context, atlasCardHref(intelligence.card))}`
     ].join("\n")
   );
 }
 
-async function cardSearchResponse(query: string, context: AtlasDiscordContext): Promise<DiscordInteractionResponse> {
+async function cardSearchResponse(
+  query: string,
+  context: AtlasDiscordContext
+): Promise<DiscordInteractionResponse> {
   const exact = await cardDetailResponse(query, context);
   if (exact != null) return exact;
 
   const results = await searchRenaissOsCards(query);
   if (results.results.length === 0) {
     return messageResponse(
-      [`**Atlas Card Search**`, `No Renaiss OS result for "${cleanLine(query)}".`, `Open: ${appLink(context, "/cards")}`].join(
-        "\n"
-      )
+      [
+        `**Atlas Card Search**`,
+        `No Renaiss OS result for "${cleanLine(query)}".`,
+        `Open: ${appLink(context, "/cards")}`
+      ].join("\n")
     );
   }
 
@@ -136,7 +143,10 @@ async function cardSearchResponse(query: string, context: AtlasDiscordContext): 
   );
 }
 
-async function gradedResponse(cert: string, context: AtlasDiscordContext): Promise<DiscordInteractionResponse> {
+async function gradedResponse(
+  cert: string,
+  context: AtlasDiscordContext
+): Promise<DiscordInteractionResponse> {
   const lookup = await lookupRenaissOsGradedCert(cert);
   if (!lookup.found || lookup.card == null) {
     return messageResponse(
@@ -189,11 +199,13 @@ export async function handleAtlasDiscordInteraction(
 
     return messageResponse("Use `/atlas market`, `/atlas card`, or `/atlas graded`.");
   } catch (error) {
-    const reason = error instanceof Error ? error.message : "unknown error";
+    const reason =
+      error instanceof Error ? `${error.name}: ${error.message}` : "non-Error rejection";
+    console.error(`[discord] Atlas interaction failed. ${reason.replace(/\s+/g, " ")}`);
     return messageResponse(
       [
         "**Atlas is temporarily unavailable**",
-        `Renaiss API lookup failed: ${cleanLine(reason)}`,
+        "Renaiss API lookup failed.",
         "Try again shortly or open the Vercel app."
       ].join("\n")
     );

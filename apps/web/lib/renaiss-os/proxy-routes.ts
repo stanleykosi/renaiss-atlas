@@ -14,9 +14,9 @@ import {
   RenaissOsTradesResponseSchema
 } from "./schemas";
 
-export type RenaissOsProxyMatch = {
+type RenaissOsProxyMatch = {
   remotePath: string;
-  schema: z.ZodTypeAny;
+  schema: z.ZodType<object, z.ZodTypeDef, unknown>;
   cacheTtlSeconds: number;
   stream: boolean;
 };
@@ -25,12 +25,9 @@ function encodeSegments(segments: readonly string[]): string {
   return segments.map((segment) => encodeURIComponent(segment)).join("/");
 }
 
-function normalizeSegments(segments: readonly string[]): string[] {
-  return segments.map((segment) => segment.trim()).filter((segment) => segment.length > 0);
-}
-
 export function matchRenaissOsProxyPath(segments: readonly string[]): RenaissOsProxyMatch | null {
-  const path = normalizeSegments(segments);
+  if (segments.some((segment) => segment.length === 0)) return null;
+  const path = segments;
 
   if (path.length === 1 && path[0] === "indices") {
     return {
@@ -97,7 +94,7 @@ export function matchRenaissOsProxyPath(segments: readonly string[]): RenaissOsP
 
   if (path.length === 3 && path[0] === "graded" && path[2] === "stream") {
     return {
-      remotePath: `/v1/graded/${encodeSegments([path[1] ?? ""])}/stream`,
+      remotePath: `/v1/graded/${encodeSegments(path.slice(1, 2))}/stream`,
       schema: RenaissOsGradedLookupSchema,
       cacheTtlSeconds: 0,
       stream: true

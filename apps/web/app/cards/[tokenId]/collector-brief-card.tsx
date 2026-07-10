@@ -20,14 +20,21 @@ export function CollectorBriefCard({ tokenId }: { tokenId: string }) {
 
   async function generateBrief() {
     setState({ status: "loading" });
-    const result = await generateCollectorBrief(tokenId);
+    try {
+      const result = await generateCollectorBrief(tokenId);
 
-    if (result.ok) {
-      setState({ status: "ready", brief: result.brief });
-      return;
+      if (result.ok) {
+        setState({ status: "ready", brief: result.brief });
+        return;
+      }
+
+      setState({ status: "error", message: result.error });
+    } catch (error) {
+      const reason =
+        error instanceof Error ? `${error.name}: ${error.message}` : "non-Error rejection";
+      console.error(`[collector-brief] Request failed. ${reason.replace(/\s+/g, " ")}`);
+      setState({ status: "error", message: "Collector Brief could not be generated." });
     }
-
-    setState({ status: "error", message: result.error });
   }
 
   return (
@@ -35,9 +42,15 @@ export function CollectorBriefCard({ tokenId }: { tokenId: string }) {
       <CardContent className="p-4">
         {state.status === "idle" || state.status === "loading" ? (
           <div className="grid min-h-32 place-items-center">
-            <Button className="w-full sm:w-auto" onClick={generateBrief} disabled={state.status === "loading"}>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => void generateBrief()}
+              disabled={state.status === "loading"}
+            >
               <Sparkles className="h-4 w-4" aria-hidden="true" />
-              {state.status === "loading" ? "Generating Collector Brief..." : "Generate Collector Brief"}
+              {state.status === "loading"
+                ? "Generating Collector Brief..."
+                : "Generate Collector Brief"}
             </Button>
           </div>
         ) : null}
@@ -46,9 +59,11 @@ export function CollectorBriefCard({ tokenId }: { tokenId: string }) {
           <div className="grid gap-4">
             <div className="rounded-md border bg-secondary/30 p-3">
               <p className="text-sm font-medium">Collector Brief unavailable</p>
-              <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{state.message}</p>
+              <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">
+                {state.message}
+              </p>
             </div>
-            <Button className="w-full" onClick={generateBrief}>
+            <Button className="w-full" onClick={() => void generateBrief()}>
               <Sparkles className="h-4 w-4" aria-hidden="true" />
               Try Again
             </Button>
@@ -75,7 +90,10 @@ function CollectorBrief({ brief }: { brief: AiCardMemoResult }) {
         <h3 className="text-xs font-medium uppercase text-muted-foreground">Why this call</h3>
         <ul className="mt-2 grid gap-2">
           {output.evidence.map((item, index) => (
-            <li key={`${index}:${item}`} className="rounded-md border bg-card px-3 py-2 text-sm leading-6">
+            <li
+              key={`${index}:${item}`}
+              className="rounded-md border bg-card px-3 py-2 text-sm leading-6"
+            >
               {item}
             </li>
           ))}
@@ -86,7 +104,10 @@ function CollectorBrief({ brief }: { brief: AiCardMemoResult }) {
         <h3 className="text-xs font-medium uppercase text-muted-foreground">Action limits</h3>
         <ul className="mt-2 grid gap-2">
           {output.risks.map((risk, index) => (
-            <li key={`${index}:${risk}`} className="rounded-md border bg-card px-3 py-2 text-sm leading-6">
+            <li
+              key={`${index}:${risk}`}
+              className="rounded-md border bg-card px-3 py-2 text-sm leading-6"
+            >
               {risk}
             </li>
           ))}

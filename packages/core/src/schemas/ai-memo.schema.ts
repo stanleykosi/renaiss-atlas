@@ -1,13 +1,15 @@
 import { z } from "zod";
 
 import { ConfidenceLabelSchema } from "../constants/confidence.js";
+import { RiskFlagSchema } from "../constants/risk-flags.js";
 import { ActionRecommendationSchema, ActionTypeSchema } from "./action.schema.js";
 import { CardSchema } from "./card.schema.js";
 import { FreshnessSchema, SourceRefSchema } from "./source-ref.schema.js";
+import { RenaissOsConfidenceSchema, RenaissOsTradeKindSchema } from "./renaiss-os.schema.js";
 import { ScoreSchema } from "./score.schema.js";
 
 export const AiMemoOfficialEvidenceSchema = z.object({
-  confidence: z.enum(["prime", "high", "medium", "low"]).nullable(),
+  confidence: RenaissOsConfidenceSchema,
   lastSaleAt: z.string().datetime().nullable(),
   updatedAt: z.string().datetime().nullable(),
   priceUsdCents: z.number().int().nonnegative().nullable(),
@@ -17,7 +19,7 @@ export const AiMemoOfficialEvidenceSchema = z.object({
   fmvPointCount: z.number().int().nonnegative(),
   priceAction: z
     .object({
-      latestTradeKind: z.enum(["listing", "transaction"]).nullable(),
+      latestTradeKind: RenaissOsTradeKindSchema.nullable(),
       latestTradeObservedAt: z.string().datetime().nullable(),
       latestTradeUsdCents: z.number().int().nonnegative().nullable(),
       lowestRecentTradeUsdCents: z.number().int().nonnegative().nullable(),
@@ -39,7 +41,7 @@ export const AiMemoInputSchema = z.object({
   scores: z.array(ScoreSchema),
   candidateActions: z.array(ActionRecommendationSchema),
   sources: z.array(SourceRefSchema),
-  riskFlags: z.array(z.string().min(1)),
+  riskFlags: z.array(RiskFlagSchema),
   freshness: z.array(FreshnessSchema),
   officialApi: z.literal(true).default(true)
 });

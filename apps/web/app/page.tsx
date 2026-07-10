@@ -40,8 +40,8 @@ export default function HomePage() {
             Renaiss Atlas
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-            Renaiss market data, deterministic Atlas scoring, and on-demand Collector Briefs for collectors who need
-            fast conviction without keys, signatures, custody, or trade execution.
+            Renaiss market data, deterministic Atlas scoring, and on-demand Collector Briefs for
+            comparing cards without keys, signatures, custody, or trade execution.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/market" className={cn(buttonVariants())}>
@@ -55,20 +55,20 @@ export default function HomePage() {
         </div>
 
         <div className="grid gap-3">
-          <StatusTile
+          <ProductFact
             icon={<Database className="h-5 w-5" aria-hidden="true" />}
-            label="Renaiss OS Index"
+            label="Official market data"
             value="Renaiss API"
           />
-          <StatusTile
+          <ProductFact
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
-            label="Collector Brief"
+            label="Collector Brief provider"
             value="OpenRouter"
           />
-          <StatusTile
+          <ProductFact
             icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
-            label="Safety posture"
-            value="read-only"
+            label="No transaction access"
+            value="Read-only"
           />
         </div>
       </section>
@@ -76,7 +76,7 @@ export default function HomePage() {
   );
 }
 
-function StatusTile({
+function ProductFact({
   icon,
   label,
   value

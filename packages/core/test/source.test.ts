@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SourceRefSchema } from "../src/source.js";
+import { SourceRefSchema } from "../src/index.js";
 
 describe("SourceRefSchema", () => {
   it("allows only official Renaiss OS source provenance", () => {

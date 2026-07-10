@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
+import { cleanEnvString } from "@renaiss/core";
+
 import {
   RenaissOsCardDetailSchema,
   RenaissOsFeaturedResponseSchema,
@@ -16,34 +18,36 @@ import {
 } from "./schemas";
 import { redisGetJson, redisSetJson } from "./redis";
 
-function cleanEnvString(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
-  return trimmed.length === 0 ? undefined : trimmed;
-}
-
 const RenaissOsEnvSchema = z.object({
-  RENAISS_OS_BASE_URL: z
-    .preprocess(
-      (value) => cleanEnvString(value) ?? "https://api.renaissos.com",
-      z.string().url()
-    ),
+  RENAISS_OS_BASE_URL: z.preprocess(cleanEnvString, z.string().url()),
   RENAISS_OS_API_KEY: z.preprocess(cleanEnvString, z.string().optional()),
   RENAISS_OS_API_SECRET: z.preprocess(cleanEnvString, z.string().optional())
 });
 
-export type RenaissOsRateLimit = {
+type RenaissOsRateLimit = {
   limit: number | null;
   remaining: number | null;
   reset: number | null;
   retryAfterSeconds: number | null;
 };
 
-export type RenaissOsRequestResult<T> = {
-  data: T;
+type RenaissOsCacheStatus = "hit" | "miss" | "bypass";
+
+type RenaissOsRequestMetadata = {
   rateLimit: RenaissOsRateLimit;
-  cacheStatus: "hit" | "miss" | "bypass";
+  cacheStatus: RenaissOsCacheStatus;
 };
+
+type RenaissOsRequestResult<T> = RenaissOsRequestMetadata & {
+  data: T;
+};
+
+const RateLimitBlockSchema = z
+  .object({
+    retryAfterSeconds: z.number().int().positive(),
+    resetAt: z.number().int().nonnegative()
+  })
+  .strict();
 
 export class RenaissOsClientError extends Error {
   readonly status: number;
@@ -92,7 +96,11 @@ function rateLimitFromHeaders(headers: Headers): RenaissOsRateLimit {
   };
 }
 
-function cacheKey(input: { baseUrl: string; path: string; searchParams?: URLSearchParams }): string {
+function cacheKey(input: {
+  baseUrl: string;
+  path: string;
+  searchParams?: URLSearchParams;
+}): string {
   const search = input.searchParams == null ? "" : input.searchParams.toString();
   return `renaiss-os:cache:${createHash("sha256")
     .update(`${input.baseUrl}:${input.path}?${search}`)
@@ -105,6 +113,11 @@ function rateLimitKey(baseUrl: string): string {
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+function reportRedisFailure(operation: string, error: Error): void {
+  const reason = `${error.name}: ${error.message}`.replace(/\s+/g, " ");
+  console.warn(`[renaiss-os] Redis ${operation} failed; bypassing optional state. ${reason}`);
 }
 
 function retrySecondsFromRateLimit(rateLimit: RenaissOsRateLimit): number {
@@ -121,17 +134,19 @@ function normalizePath(path: string): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-export class RenaissOSClient {
+class RenaissOSClient {
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
   private readonly apiSecret: string | undefined;
   private readonly env: Record<string, string | undefined>;
   private readonly fetchFn: typeof fetch;
 
-  constructor(input: {
-    env?: Record<string, string | undefined>;
-    fetchFn?: typeof fetch;
-  } = {}) {
+  constructor(
+    input: {
+      env?: Record<string, string | undefined>;
+      fetchFn?: typeof fetch;
+    } = {}
+  ) {
     if (typeof window !== "undefined") {
       throw new Error("RenaissOSClient must only be used on the server.");
     }
@@ -178,7 +193,12 @@ export class RenaissOSClient {
     );
   }
 
-  async getCardTrades(game: string, set: string, card: string, searchParams = new URLSearchParams()) {
+  async getCardTrades(
+    game: string,
+    set: string,
+    card: string,
+    searchParams = new URLSearchParams()
+  ) {
     return this.getJson(
       `/v1/cards/${encodeURIComponent(game)}/${encodeURIComponent(set)}/${encodeURIComponent(card)}/trades`,
       RenaissOsTradesResponseSchema,
@@ -186,7 +206,12 @@ export class RenaissOSClient {
     );
   }
 
-  async getCardSeries(game: string, set: string, card: string, searchParams = new URLSearchParams()) {
+  async getCardSeries(
+    game: string,
+    set: string,
+    card: string,
+    searchParams = new URLSearchParams()
+  ) {
     return this.getJson(
       `/v1/cards/${encodeURIComponent(game)}/${encodeURIComponent(set)}/${encodeURIComponent(card)}/series`,
       RenaissOsSeriesResponseSchema,
@@ -194,7 +219,12 @@ export class RenaissOSClient {
     );
   }
 
-  async getCardFmvSeries(game: string, set: string, card: string, searchParams = new URLSearchParams()) {
+  async getCardFmvSeries(
+    game: string,
+    set: string,
+    card: string,
+    searchParams = new URLSearchParams()
+  ) {
     return this.getJson(
       `/v1/cards/${encodeURIComponent(game)}/${encodeURIComponent(set)}/${encodeURIComponent(card)}/fmv-series`,
       RenaissOsFmvSeriesResponseSchema,
@@ -211,9 +241,13 @@ export class RenaissOSClient {
   }
 
   async getSet(game: string, set: string) {
-    return this.getJson(`/v1/sets/${encodeURIComponent(game)}/${encodeURIComponent(set)}`, RenaissOsSetResponseSchema, {
-      cacheTtlSeconds: 300
-    });
+    return this.getJson(
+      `/v1/sets/${encodeURIComponent(game)}/${encodeURIComponent(set)}`,
+      RenaissOsSetResponseSchema,
+      {
+        cacheTtlSeconds: 300
+      }
+    );
   }
 
   async getGraded(cert: string) {
@@ -222,14 +256,14 @@ export class RenaissOSClient {
     });
   }
 
-  async getJson<Schema extends z.ZodTypeAny>(
+  async getJson<Output extends object>(
     path: string,
-    schema: Schema,
+    schema: z.ZodType<Output, z.ZodTypeDef, unknown>,
     options: {
       searchParams?: URLSearchParams;
       cacheTtlSeconds?: number;
     } = {}
-  ): Promise<RenaissOsRequestResult<z.infer<Schema>>> {
+  ): Promise<RenaissOsRequestResult<Output>> {
     const normalizedPath = normalizePath(path);
     const cacheTtlSeconds = options.cacheTtlSeconds ?? 0;
     const key = cacheKey({
@@ -237,13 +271,18 @@ export class RenaissOSClient {
       path: normalizedPath,
       ...(options.searchParams == null ? {} : { searchParams: options.searchParams })
     });
+    let cacheStatus: RenaissOsCacheStatus = cacheTtlSeconds > 0 ? "miss" : "bypass";
 
     if (cacheTtlSeconds > 0) {
-      const cached = await redisGetJson<unknown>(key, this.env);
-      if (cached != null) {
-        const data = schema.parse(cached) as z.infer<Schema>;
+      const cached = await redisGetJson(key, schema, this.env);
+      if (cached.status === "error") {
+        reportRedisFailure("cache read", cached.error);
+        cacheStatus = "bypass";
+      } else if (cached.status === "disabled") {
+        cacheStatus = "bypass";
+      } else if (cached.status === "hit") {
         return {
-          data,
+          data: cached.value,
           rateLimit: emptyRateLimit(),
           cacheStatus: "hit"
         };
@@ -261,27 +300,42 @@ export class RenaissOSClient {
     }
 
     if (!response.ok) {
-      throw new RenaissOsClientError(`Renaiss OS API request failed with ${response.status}.`, response.status, rateLimit);
+      throw new RenaissOsClientError(
+        `Renaiss OS API request failed with ${response.status}.`,
+        response.status,
+        rateLimit
+      );
     }
 
-    const parsed = schema.safeParse(await response.json());
+    const responseBody: unknown = await response.json();
+    const parsed = schema.safeParse(responseBody);
     if (!parsed.success) {
-      throw new RenaissOsClientError("Renaiss OS API response failed schema validation.", 502, rateLimit);
+      throw new RenaissOsClientError(
+        "Renaiss OS API response failed schema validation.",
+        502,
+        rateLimit
+      );
     }
-    const data = parsed.data as z.infer<Schema>;
+    const data = parsed.data;
 
     if (rateLimit.remaining === 0) {
       await this.rememberRateLimit(rateLimit);
     }
 
     if (cacheTtlSeconds > 0) {
-      await redisSetJson(key, data, cacheTtlSeconds, this.env);
+      const write = await redisSetJson(key, data, cacheTtlSeconds, this.env);
+      if (write.status === "error") {
+        reportRedisFailure("cache write", write.error);
+        cacheStatus = "bypass";
+      } else if (write.status === "disabled") {
+        cacheStatus = "bypass";
+      }
     }
 
     return {
       data,
       rateLimit,
-      cacheStatus: cacheTtlSeconds > 0 ? "miss" : "bypass"
+      cacheStatus
     };
   }
 
@@ -308,7 +362,11 @@ export class RenaissOSClient {
     return headers;
   }
 
-  private async fetchOfficial(path: string, searchParams?: URLSearchParams, headers?: Record<string, string>) {
+  private async fetchOfficial(
+    path: string,
+    searchParams?: URLSearchParams,
+    headers?: Record<string, string>
+  ) {
     const url = new URL(`${this.baseUrl}${path}`);
     for (const [key, value] of searchParams ?? new URLSearchParams()) {
       url.searchParams.append(key, value);
@@ -321,8 +379,14 @@ export class RenaissOSClient {
   }
 
   private async throwIfRateLimited() {
-    const block = await redisGetJson<{ retryAfterSeconds: number; resetAt: number }>(rateLimitKey(this.baseUrl), this.env);
-    if (block == null) return;
+    const result = await redisGetJson(rateLimitKey(this.baseUrl), RateLimitBlockSchema, this.env);
+    if (result.status === "error") {
+      reportRedisFailure("rate-limit read", result.error);
+      return;
+    }
+    if (result.status !== "hit") return;
+
+    const block = result.value;
     const retryAfterSeconds = Math.max(1, block.resetAt - nowSeconds(), block.retryAfterSeconds);
     throw new RenaissOsRateLimitError(retryAfterSeconds, {
       limit: null,
@@ -334,7 +398,7 @@ export class RenaissOSClient {
 
   private async rememberRateLimit(rateLimit: RenaissOsRateLimit) {
     const retryAfterSeconds = retrySecondsFromRateLimit(rateLimit);
-    await redisSetJson(
+    const write = await redisSetJson(
       rateLimitKey(this.baseUrl),
       {
         retryAfterSeconds,
@@ -343,6 +407,9 @@ export class RenaissOSClient {
       retryAfterSeconds,
       this.env
     );
+    if (write.status === "error") {
+      reportRedisFailure("rate-limit write", write.error);
+    }
   }
 }
 
@@ -350,16 +417,18 @@ export function createRenaissOSClient(env?: Record<string, string | undefined>):
   return new RenaissOSClient(env == null ? {} : { env });
 }
 
-export function headersForProxy(result: Pick<RenaissOsRequestResult<unknown>, "rateLimit" | "cacheStatus">): HeadersInit {
+export function headersForProxy(result: RenaissOsRequestMetadata): HeadersInit {
   const headers: Record<string, string> = {
     "Cache-Control": "private, no-store",
     "X-Atlas-Cache": result.cacheStatus
   };
 
   if (result.rateLimit.limit != null) headers["X-RateLimit-Limit"] = String(result.rateLimit.limit);
-  if (result.rateLimit.remaining != null) headers["X-RateLimit-Remaining"] = String(result.rateLimit.remaining);
+  if (result.rateLimit.remaining != null)
+    headers["X-RateLimit-Remaining"] = String(result.rateLimit.remaining);
   if (result.rateLimit.reset != null) headers["X-RateLimit-Reset"] = String(result.rateLimit.reset);
-  if (result.rateLimit.retryAfterSeconds != null) headers["Retry-After"] = String(result.rateLimit.retryAfterSeconds);
+  if (result.rateLimit.retryAfterSeconds != null)
+    headers["Retry-After"] = String(result.rateLimit.retryAfterSeconds);
 
   return headers;
 }

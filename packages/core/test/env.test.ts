@@ -30,6 +30,18 @@ describe("parseRuntimeEnv", () => {
     ).toThrow();
   });
 
+  it("requires the official API base URL", () => {
+    expect(() =>
+      parseRuntimeEnv({
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        UPSTASH_REDIS_REST_URL: "https://redis.example.com",
+        UPSTASH_REDIS_REST_TOKEN: "redis-token",
+        OPENROUTER_API_KEY: "openrouter-key",
+        OPENROUTER_MODEL: "openrouter/model"
+      })
+    ).toThrow();
+  });
+
   it("trims surrounding quotes from deployment env values", () => {
     const env = parseRuntimeEnv({
       NEXT_PUBLIC_APP_URL: '"https://atlas.example.com"',

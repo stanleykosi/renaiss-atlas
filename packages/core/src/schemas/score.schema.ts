@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ConfidenceLabelSchema } from "../constants/confidence.js";
+import { RiskFlagSchema } from "../constants/risk-flags.js";
 
 export const ScoreEntityTypeSchema = z.enum(["card"]);
 
@@ -19,7 +20,7 @@ export const ScoreSchema = z.object({
   confidence: ConfidenceLabelSchema,
   inputsHash: z.string().min(1),
   reasons: z.array(z.string().min(1)),
-  riskFlags: z.array(z.string().min(1)),
+  riskFlags: z.array(RiskFlagSchema),
   computedAt: z.string().datetime()
 });
 

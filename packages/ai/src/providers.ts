@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cleanEnvString } from "@renaiss/core";
+
 import { buildCardMemoUserPrompt, CARD_MEMO_SYSTEM_PROMPT } from "./prompts.js";
 import type { AiMemoInput } from "./schemas.js";
 
@@ -15,21 +17,13 @@ export type AiProvider = {
   generateCardMemo(request: CardMemoProviderRequest): Promise<unknown>;
 };
 
-function cleanEnvString(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
-  return trimmed.length === 0 ? undefined : trimmed;
-}
-
 const optionalUrl = z.preprocess(cleanEnvString, z.string().url().optional());
 
-export const AiProviderEnvSchema = z.object({
+const AiProviderEnvSchema = z.object({
   OPENROUTER_API_KEY: z.preprocess(cleanEnvString, z.string().min(1)),
   OPENROUTER_MODEL: z.preprocess(cleanEnvString, z.string().min(1)),
   NEXT_PUBLIC_APP_URL: optionalUrl
 });
-
-export type AiProviderEnv = z.infer<typeof AiProviderEnvSchema>;
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
@@ -46,23 +40,7 @@ const ChatCompletionResponseSchema = z.object({
 });
 
 function parseJsonObject(content: string): unknown {
-  const trimmed = content.trim();
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-    if (fenced?.[1] != null) {
-      return JSON.parse(fenced[1]) as unknown;
-    }
-
-    const firstBrace = trimmed.indexOf("{");
-    const lastBrace = trimmed.lastIndexOf("}");
-    if (firstBrace >= 0 && lastBrace > firstBrace) {
-      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)) as unknown;
-    }
-
-    throw new Error(`AI provider returned non-JSON memo content`);
-  }
+  return JSON.parse(content) as unknown;
 }
 
 export class OpenRouterProvider implements AiProvider {

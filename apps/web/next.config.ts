@@ -1,18 +1,20 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+import { existsSync } from "node:fs";
 import path from "node:path";
+import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 
-const appRoot = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(appRoot, "../..");
-const sentryStubPath = path.resolve(appRoot, "lib/sentry-stub.ts");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const repoEnvPath = path.join(repoRoot, ".env");
+
+// Next runs from apps/web, while local setup keeps the shared environment at the repo root.
+if (existsSync(repoEnvPath)) {
+  loadEnvFile(repoEnvPath);
+}
 
 const sentryAuthToken = process.env["SENTRY_AUTH_TOKEN"];
-const sentryConfigured =
-  (process.env["SENTRY_DSN"] != null && process.env["SENTRY_DSN"] !== "") ||
-  (process.env["NEXT_PUBLIC_SENTRY_DSN"] != null && process.env["NEXT_PUBLIC_SENTRY_DSN"] !== "") ||
-  (sentryAuthToken != null && sentryAuthToken !== "");
-
-const shouldUseRealSentryPackage = sentryConfigured && process.env["NODE_ENV"] === "production";
+const hasSentryAuthToken = sentryAuthToken != null && sentryAuthToken.trim().length > 0;
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
@@ -30,37 +32,22 @@ const nextConfig: NextConfig = {
       ".cjs": [".cts", ".cjs"]
     };
 
-    if (!shouldUseRealSentryPackage) {
-      config.resolve.alias = {
-        ...(config.resolve.alias ?? {}),
-        "@sentry/nextjs": sentryStubPath
-      };
-    }
-
     return config;
   }
 };
 
-export default async function getNextConfig(): Promise<NextConfig> {
-  if (!shouldUseRealSentryPackage) {
-    return nextConfig;
-  }
-
-  const { withSentryConfig } = await import("@sentry/nextjs");
-
-  return withSentryConfig(nextConfig, {
-    ...(process.env["SENTRY_ORG"] == null ? {} : { org: process.env["SENTRY_ORG"] }),
-    ...(process.env["SENTRY_PROJECT"] == null ? {} : { project: process.env["SENTRY_PROJECT"] }),
-    ...(sentryAuthToken == null || sentryAuthToken === "" ? {} : { authToken: sentryAuthToken }),
-    silent: !process.env["CI"],
-    webpack: {
-      treeshake: {
-        removeDebugLogging: process.env["NODE_ENV"] === "production"
-      }
-    },
-    sourcemaps: {
-      disable: sentryAuthToken == null || sentryAuthToken === "",
-      deleteSourcemapsAfterUpload: true
+export default withSentryConfig(nextConfig, {
+  ...(process.env["SENTRY_ORG"] == null ? {} : { org: process.env["SENTRY_ORG"] }),
+  ...(process.env["SENTRY_PROJECT"] == null ? {} : { project: process.env["SENTRY_PROJECT"] }),
+  ...(hasSentryAuthToken ? { authToken: sentryAuthToken } : {}),
+  silent: !process.env["CI"],
+  webpack: {
+    treeshake: {
+      removeDebugLogging: process.env["NODE_ENV"] === "production"
     }
-  });
-}
+  },
+  sourcemaps: {
+    disable: !hasSentryAuthToken,
+    deleteSourcemapsAfterUpload: true
+  }
+});

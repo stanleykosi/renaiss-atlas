@@ -1,30 +1,27 @@
+import type { RiskFlag, ScoreType } from "@renaiss/core";
+
 import type { AiMemoInput } from "./schemas.js";
 
-const scoreDisplayNames: Record<string, string> = {
+const scoreDisplayNames = {
   activity_velocity: "market activity",
   liquidity: "liquidity",
-  price_confidence: "FMV reliability"
-};
+  price_confidence: "FMV reliability",
+  source_confidence: "data depth"
+} satisfies Record<ScoreType, string>;
 
-function jsonSafe(value: unknown): unknown {
-  if (typeof value === "bigint") return value.toString();
-  if (Array.isArray(value)) return value.map(jsonSafe);
-  if (value != null && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, nested]) => [key, jsonSafe(nested)])
-    );
-  }
-  return value;
+const riskDisplayNames = {
+  official_confidence_low: "low confidence",
+  official_observations_missing: "missing official observations",
+  single_source_evidence: "single-source evidence",
+  stale_last_sale: "stale last sale",
+  trade_activity_missing: "missing recent trades"
+} satisfies Record<RiskFlag, string>;
+
+function riskDisplayName(value: RiskFlag): string {
+  return riskDisplayNames[value];
 }
 
-function riskDisplayName(value: string): string {
-  if (value === "official_confidence_low") return "low confidence";
-  if (value === "stale_last_sale") return "stale last sale";
-  if (value === "trade_activity_missing") return "missing recent trades";
-  return value.replaceAll("_", " ");
-}
-
-function buildRenaissSignalDigest(input: AiMemoInput): Record<string, unknown> {
+function buildRenaissSignalDigest(input: AiMemoInput) {
   return {
     card: {
       name: input.card.name,
@@ -34,18 +31,14 @@ function buildRenaissSignalDigest(input: AiMemoInput): Record<string, unknown> {
     },
     renaissData: input.officialEvidence,
     atlasScores: input.scores.map((score) => ({
-      name: scoreDisplayNames[score.scoreType] ?? score.scoreType,
+      name: scoreDisplayNames[score.scoreType],
       score: score.scoreValue,
       confidence: score.confidence,
       reason: score.reasons[0] ?? null,
-      riskFlags: score.riskFlags
-        .filter((flag) => flag !== "single_source_evidence" && flag !== "official_observations_missing")
-        .map(riskDisplayName)
+      riskFlags: score.riskFlags.map(riskDisplayName)
     })),
     freshness: input.freshness,
-    riskFlags: input.riskFlags
-      .filter((flag) => flag !== "single_source_evidence" && flag !== "official_observations_missing")
-      .map(riskDisplayName),
+    riskFlags: input.riskFlags.map(riskDisplayName),
     allowedSourceIds: input.sources.map((source) => source.id)
   };
 }
@@ -100,6 +93,6 @@ export function buildCardMemoUserPrompt(input: AiMemoInput): string {
     "- For prime/high confidence and strong scores, the read should be more assertive. For low confidence, the action should be wait or pass for now.",
     "- Keep each line useful. Do not repeat a score name or value unless you explain the action consequence.",
     "Renaiss signal digest:",
-    JSON.stringify(jsonSafe(buildRenaissSignalDigest(input)), null, 2)
+    JSON.stringify(buildRenaissSignalDigest(input), null, 2)
   ].join("\n\n");
 }

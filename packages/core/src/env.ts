@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-function cleanEnvString(value: unknown): unknown {
+export function cleanEnvString(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
   return trimmed.length === 0 ? undefined : trimmed;
@@ -13,10 +13,9 @@ const requiredUrl = z.preprocess(cleanEnvString, z.string().url());
 
 export const RuntimeEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: requiredUrl,
-  LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   UPSTASH_REDIS_REST_URL: requiredUrl,
   UPSTASH_REDIS_REST_TOKEN: requiredString,
-  RENAISS_OS_BASE_URL: z.preprocess((value) => cleanEnvString(value) ?? "https://api.renaissos.com", z.string().url()),
+  RENAISS_OS_BASE_URL: requiredUrl,
   RENAISS_OS_API_KEY: optionalString,
   RENAISS_OS_API_SECRET: optionalString,
   OPENROUTER_API_KEY: requiredString,

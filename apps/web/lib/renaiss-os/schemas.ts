@@ -1,43 +1,79 @@
+import { RenaissOsConfidenceSchema, RenaissOsTradeKindSchema } from "@renaiss/core";
 import { z } from "zod";
 
-export const RenaissOsGameSchema = z.enum(["pokemon", "one-piece", "sports"]);
-export const RenaissOsBucketSchema = z.enum(["public", "renaiss", "partner"]).nullable().optional();
-export const RenaissOsCategorySchema = z
+const RenaissOsGameSchema = z.enum(["pokemon", "one-piece", "sports"]);
+const RenaissOsBucketSchema = z.enum(["public", "renaiss", "partner"]).nullable();
+const RenaissOsCategorySchema = z
   .enum(["public", "blockchain", "renaiss", "partner", "internal"])
-  .nullable()
-  .optional();
-export const RenaissOsCompanySchema = z.enum(["PSA", "BGS", "CGC", "SGC", "RAW", "TAG"]).nullable();
-export const RenaissOsConfidenceSchema = z.enum(["prime", "high", "medium", "low"]).nullable();
+  .nullable();
+const RenaissOsCompanySchema = z.enum(["PSA", "BGS", "CGC", "SGC", "RAW", "TAG"]).nullable();
 
 const nullableString = z.string().nullable();
 const nullableNumber = z.number().nullable();
 const nullableInt = z.number().int().nullable();
 const dateString = z.string().datetime();
+const RenaissOsCardTypeSchema = z.enum(["POKEMON", "ONE_PIECE", "SPORTS"]);
+const RenaissOsFmvMethodSchema = z.enum(["median", "mean", "vwap"]);
+const RenaissOsGradeSchema = z
+  .enum([
+    "1 Poor",
+    "2 Good",
+    "3 Very Good",
+    "4 Very Good-Excellent",
+    "5 Excellent",
+    "6 Excellent-Mint",
+    "7 Near Mint",
+    "8 NM-MT",
+    "8.5 NM-MT+",
+    "9 Mint",
+    "9.5 Mint",
+    "10 Gem Mint",
+    "8 NM/Mint",
+    "8.5 NM/Mint+",
+    "9.5 Mint +",
+    "9.5 Gem Mint",
+    "10 Pristine",
+    "10 Black Label",
+    "10 Perfect",
+    "A",
+    "B",
+    "C",
+    "D"
+  ])
+  .nullable();
+const RenaissOsGradedReasonSchema = z.enum([
+  "not_ingested",
+  "company_unsupported",
+  "compute_incomplete",
+  "no_grade_price",
+  "game_unsupported",
+  "needs_photo"
+]);
 
-export const RenaissOsDeltasSchema = z
+const RenaissOsDeltasSchema = z
   .object({
     d7: nullableNumber,
     d30: nullableNumber,
     d365: nullableNumber
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsSeriesPointSchema = z
+const RenaissOsSeriesPointSchema = z
   .object({
     t: dateString,
     usdCents: z.number().int().nonnegative(),
     source: nullableString.optional(),
-    bucket: RenaissOsBucketSchema,
-    category: RenaissOsCategorySchema,
+    bucket: RenaissOsBucketSchema.optional(),
+    category: RenaissOsCategorySchema.optional(),
     n: z.number().int().nonnegative().optional(),
-    kind: z.enum(["transaction", "listing"]).nullable().optional(),
+    kind: RenaissOsTradeKindSchema.nullable().optional(),
     company: RenaissOsCompanySchema.optional(),
-    grade: nullableString.optional(),
+    grade: RenaissOsGradeSchema.optional(),
     gradeLabel: z.string().optional()
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsIndexMoverSchema = z
+const RenaissOsIndexMoverSchema = z
   .object({
     name: z.string(),
     setCode: nullableString,
@@ -46,9 +82,9 @@ export const RenaissOsIndexMoverSchema = z
     href: z.string(),
     deltaPct: nullableNumber
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsIndexTileSchema = z
+const RenaissOsIndexTileSchema = z
   .object({
     game: RenaissOsGameSchema,
     label: z.string(),
@@ -61,15 +97,15 @@ export const RenaissOsIndexTileSchema = z
     topMovers: z.array(RenaissOsIndexMoverSchema),
     updatedAt: dateString.nullable()
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsIndicesResponseSchema = z
   .object({
     indices: z.array(RenaissOsIndexTileSchema)
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsIndexConstituentSchema = z
+const RenaissOsIndexConstituentSchema = z
   .object({
     rank: z.number().int().positive(),
     name: z.string(),
@@ -84,18 +120,18 @@ export const RenaissOsIndexConstituentSchema = z
     lastSaleAt: dateString.nullable(),
     href: z.string()
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsIndexDetailSchema = RenaissOsIndexTileSchema.extend({
   windowDays: z.number().int().positive(),
   baseDate: nullableString,
   constituents: z.array(RenaissOsIndexConstituentSchema)
-}).passthrough();
+}).strict();
 
 export const RenaissOsCardSummarySchema = z
   .object({
     game: RenaissOsGameSchema,
-    type: z.enum(["POKEMON", "ONE_PIECE", "SPORTS"]),
+    type: RenaissOsCardTypeSchema,
     name: z.string(),
     setName: nullableString,
     setCode: nullableString,
@@ -105,7 +141,7 @@ export const RenaissOsCardSummarySchema = z
     imageUrl: nullableString,
     imageUrlThumb: nullableString.optional(),
     company: RenaissOsCompanySchema,
-    grade: nullableString,
+    grade: RenaissOsGradeSchema,
     gradeLabel: z.string(),
     priceUsdCents: nullableInt,
     deltaPct: nullableNumber,
@@ -114,15 +150,15 @@ export const RenaissOsCardSummarySchema = z
     spark: z.array(z.number().int().nonnegative()).optional(),
     href: z.string()
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsFeaturedResponseSchema = z
   .object({
     cards: z.array(RenaissOsCardSummarySchema)
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsSourceBreakdownEntrySchema = z
+const RenaissOsSourceBreakdownEntrySchema = z
   .object({
     source: z.string(),
     bucket: RenaissOsBucketSchema,
@@ -132,11 +168,11 @@ export const RenaissOsSourceBreakdownEntrySchema = z
     medianUsdCents: nullableInt,
     overviewUrl: nullableString
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsFmvMethodValueSchema = z
+const RenaissOsFmvMethodValueSchema = z
   .object({
-    method: z.enum(["median", "mean", "vwap"]),
+    method: RenaissOsFmvMethodSchema,
     scorerVersion: z.string(),
     label: z.string(),
     priceUsdCents: nullableInt,
@@ -144,12 +180,12 @@ export const RenaissOsFmvMethodValueSchema = z
     sourceCount: nullableInt,
     observationCount: nullableInt
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsGradeRowSchema = z
+const RenaissOsGradeRowSchema = z
   .object({
     company: RenaissOsCompanySchema,
-    grade: nullableString,
+    grade: RenaissOsGradeSchema,
     gradeLabel: z.string(),
     priceUsdCents: nullableInt,
     deltaPct: nullableNumber,
@@ -158,13 +194,33 @@ export const RenaissOsGradeRowSchema = z
     href: z.string(),
     current: z.boolean()
   })
-  .passthrough();
+  .strict();
+
+const RenaissOsLanguageVariantSchema = z
+  .object({
+    language: z.string(),
+    priceUsdCents: nullableInt,
+    confidence: RenaissOsConfidenceSchema,
+    href: z.string(),
+    current: z.boolean()
+  })
+  .strict();
+
+const RenaissOsCardVariantSchema = z
+  .object({
+    variation: nullableString,
+    priceUsdCents: nullableInt,
+    confidence: RenaissOsConfidenceSchema,
+    href: z.string(),
+    current: z.boolean()
+  })
+  .strict();
 
 export const RenaissOsCardDetailSchema = z
   .object({
     id: z.string(),
     game: RenaissOsGameSchema,
-    type: z.enum(["POKEMON", "ONE_PIECE", "SPORTS"]),
+    type: RenaissOsCardTypeSchema,
     name: z.string(),
     setName: nullableString,
     setCode: nullableString,
@@ -174,7 +230,7 @@ export const RenaissOsCardDetailSchema = z
     imageUrl: nullableString,
     imageUrlLg: nullableString,
     company: RenaissOsCompanySchema,
-    grade: nullableString,
+    grade: RenaissOsGradeSchema,
     gradeLabel: z.string(),
     priceUsdCents: nullableInt,
     deltas: RenaissOsDeltasSchema,
@@ -188,14 +244,16 @@ export const RenaissOsCardDetailSchema = z
     refreshing: z.boolean(),
     sourceBreakdown: z.array(RenaissOsSourceBreakdownEntrySchema),
     sourceBreakdownAllTime: z.array(RenaissOsSourceBreakdownEntrySchema),
-    trackedSources: z.array(RenaissOsSourceBreakdownEntrySchema).optional(),
+    trackedSources: z.array(RenaissOsSourceBreakdownEntrySchema).default([]),
     methods: z.array(RenaissOsFmvMethodValueSchema),
     otherGrades: z.array(RenaissOsGradeRowSchema),
+    otherLanguages: z.array(RenaissOsLanguageVariantSchema).default([]),
+    otherVariants: z.array(RenaissOsCardVariantSchema).default([]),
     similar: z.array(RenaissOsCardSummarySchema),
     href: z.string(),
     pageUrl: z.string()
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsTradeRowSchema = z
   .object({
@@ -204,55 +262,55 @@ export const RenaissOsTradeRowSchema = z
     category: RenaissOsCategorySchema,
     displayName: z.string(),
     observedAt: dateString,
-    kind: z.enum(["listing", "transaction"]),
+    kind: RenaissOsTradeKindSchema,
     priceUsdCents: nullableInt,
     priceMinor: nullableInt,
     currency: z.string(),
     detail: nullableString,
     sourceUrl: nullableString,
     company: RenaissOsCompanySchema,
-    grade: nullableString,
+    grade: RenaissOsGradeSchema,
     gradeLabel: nullableString
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsTradesResponseSchema = z
   .object({
     trades: z.array(RenaissOsTradeRowSchema),
     total: z.number().int().nonnegative()
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsRecentTradeSchema = RenaissOsTradeRowSchema.extend({
+const RenaissOsRecentTradeSchema = RenaissOsTradeRowSchema.extend({
   id: z.string(),
   card: z
     .object({
       game: RenaissOsGameSchema,
       name: z.string(),
-      grade: nullableString,
+      grade: RenaissOsGradeSchema,
       gradeLabel: z.string(),
       setCode: nullableString,
       cardNumber: nullableString,
       href: z.string(),
       imageUrl: nullableString
     })
-    .passthrough()
-}).passthrough();
+    .strict()
+}).strict();
 
 export const RenaissOsRecentTradesResponseSchema = z
   .object({
     trades: z.array(RenaissOsRecentTradeSchema)
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsSeriesResponseSchema = z
   .object({
     windowDays: z.number().int().positive(),
     points: z.array(RenaissOsSeriesPointSchema)
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsFmvSourcePointSchema = z
+const RenaissOsFmvSourcePointSchema = z
   .object({
     source: z.string(),
     bucket: RenaissOsBucketSchema,
@@ -261,20 +319,20 @@ export const RenaissOsFmvSourcePointSchema = z
     usdCents: z.number().int().nonnegative(),
     n: z.number().int().nonnegative()
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsFmvSeriesPointSchema = z
+const RenaissOsFmvSeriesPointSchema = z
   .object({
     t: dateString,
     usdCents: z.number().int().nonnegative(),
     n: z.number().int().nonnegative(),
     bySource: z.array(RenaissOsFmvSourcePointSchema)
   })
-  .passthrough();
+  .strict();
 
-export const RenaissOsFmvMethodSeriesSchema = z
+const RenaissOsFmvMethodSeriesSchema = z
   .object({
-    method: z.enum(["median", "mean", "vwap"]),
+    method: RenaissOsFmvMethodSchema,
     scorerVersion: z.string(),
     label: z.string(),
     points: z.array(
@@ -283,10 +341,10 @@ export const RenaissOsFmvMethodSeriesSchema = z
           t: dateString,
           usdCents: z.number().int().nonnegative()
         })
-        .passthrough()
+        .strict()
     )
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsFmvSeriesResponseSchema = z
   .object({
@@ -296,14 +354,14 @@ export const RenaissOsFmvSeriesResponseSchema = z
     points: z.array(RenaissOsFmvSeriesPointSchema),
     series: z.array(RenaissOsFmvMethodSeriesSchema)
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsSearchResponseSchema = z
   .object({
     query: z.string(),
     results: z.array(RenaissOsCardSummarySchema)
   })
-  .passthrough();
+  .strict();
 
 export const RenaissOsSetResponseSchema = z
   .object({
@@ -316,7 +374,52 @@ export const RenaissOsSetResponseSchema = z
     cardCount: z.number().int().nonnegative(),
     cards: z.array(RenaissOsCardSummarySchema)
   })
-  .passthrough();
+  .strict();
+
+const RenaissOsCollectibleSchema = z
+  .object({
+    id: z.string(),
+    renaissItemId: nullableString,
+    itemId: nullableString,
+    cardIdentifier: z.string(),
+    gradingCompany: RenaissOsCompanySchema,
+    grade: nullableString,
+    reviewStatus: z.string(),
+    lookupOk: z.boolean(),
+    inferredType: nullableString,
+    source: z.string(),
+    frontImageUrl: nullableString,
+    backImageUrl: nullableString,
+    frontWithoutStandImageUrl: nullableString,
+    animationUrl: nullableString,
+    itemImageUrl: nullableString,
+    imageSource: nullableString,
+    imageSourceObservationId: nullableString,
+    imageFetchAttemptedAt: nullableString,
+    imageFetchAttempts: z.number(),
+    subject: nullableString,
+    year: nullableNumber,
+    brand: nullableString,
+    cardNumber: nullableString,
+    category: nullableString,
+    variety: nullableString,
+    gradeDescription: nullableString,
+    specId: nullableNumber,
+    specNumber: nullableString,
+    labelType: nullableString,
+    totalPopulation: nullableNumber,
+    populationHigher: nullableNumber,
+    isPsaDna: z.boolean().nullable(),
+    isDualCert: z.boolean().nullable(),
+    reverseBarCode: z.boolean().nullable(),
+    rawLookup: z.unknown().nullable().optional(),
+    collectibleCreatedAt: nullableString,
+    collectibleUpdatedAt: nullableString,
+    importedAt: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+  .strict();
 
 export const RenaissOsGradedLookupSchema = z
   .object({
@@ -324,7 +427,7 @@ export const RenaissOsGradedLookupSchema = z
     certNumber: z.string(),
     company: RenaissOsCompanySchema,
     found: z.boolean(),
-    grade: nullableString,
+    grade: RenaissOsGradeSchema,
     gradeLabel: nullableString,
     card: RenaissOsCardSummarySchema.nullable(),
     certImages: z
@@ -333,17 +436,16 @@ export const RenaissOsGradedLookupSchema = z
         back: nullableString,
         item: nullableString
       })
-      .passthrough()
+      .strict()
       .nullable(),
-    collectible: z.record(z.unknown()).nullable().optional(),
-    reason: z.string().nullable().optional()
+    collectible: RenaissOsCollectibleSchema.nullable().optional(),
+    reason: RenaissOsGradedReasonSchema.nullable().optional()
   })
-  .passthrough();
+  .strict();
 
 export type RenaissOsCardSummary = z.infer<typeof RenaissOsCardSummarySchema>;
 export type RenaissOsCardDetail = z.infer<typeof RenaissOsCardDetailSchema>;
 export type RenaissOsIndexDetail = z.infer<typeof RenaissOsIndexDetailSchema>;
-export type RenaissOsIndexConstituent = z.infer<typeof RenaissOsIndexConstituentSchema>;
 export type RenaissOsTradeRow = z.infer<typeof RenaissOsTradeRowSchema>;
 export type RenaissOsFmvSeriesResponse = z.infer<typeof RenaissOsFmvSeriesResponseSchema>;
 export type RenaissOsGradedLookup = z.infer<typeof RenaissOsGradedLookupSchema>;
